@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>本格複式簿記 パーソナル家計簿システム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        #toast-notification { transition: transform 0.3s ease, opacity 0.3s ease; }
+        .draggable-item { cursor: grab; }
+        .draggable-item:active { cursor: grabbing; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; color: black; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased text-xs sm:text-sm">
+
+    <!-- トースト通知 -->
+    <div id="toast-notification" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 pointer-events-none bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-700 text-xs sm:text-sm">
+        <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 shrink-0"></i>
+        <span id="toast-message">通知メッセージ</span>
+    </div>
+
+    <!-- ヘッダー・ナビゲーション -->
+    <header class="bg-slate-900 text-white shadow-lg no-print sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 py-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="wallet" class="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400 shrink-0"></i>
+                <div class="min-w-0">
+                    <h1 class="text-sm sm:text-base font-bold tracking-wide truncate flex items-center gap-1.5">
+                        <span id="display-household-name">我が家の家計簿</span> 複式会計
+                    </h1>
+                    <p class="text-[10px] text-slate-400" id="display-fiscal-year">会計年度: 2026 年度</p>
+                </div>
+            </div>
+
+            <!-- Undo / Redo ボタン -->
+            <div class="flex items-center gap-1">
+                <button id="btn-undo" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded font-medium flex items-center gap-1 disabled:opacity-40" title="元に戻す (Ctrl+Z)" disabled>
+                    <i data-lucide="undo-2" class="w-3.5 h-3.5"></i> 戻す
+                </button>
+                <button id="btn-redo" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded font-medium flex items-center gap-1 disabled:opacity-40" title="やり直し (Ctrl+Y)" disabled>
+                    <i data-lucide="redo-2" class="w-3.5 h-3.5"></i> やり直し
+                </button>
+            </div>
+
+            <!-- ファイル操作コントロール -->
+            <div class="flex items-center space-x-1 sm:space-x-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700 overflow-x-auto no-scrollbar shrink-0">
+                <button id="btn-open" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-[11px] text-white rounded font-medium flex items-center gap-1 transition whitespace-nowrap">
+                    <i data-lucide="folder-open" class="w-3.5 h-3.5 text-amber-400"></i> 開く
+                </button>
+                <button id="btn-save" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-[11px] text-white rounded font-medium flex items-center gap-1 transition whitespace-nowrap">
+                    <i data-lucide="save" class="w-3.5 h-3.5"></i> 上書き保存
+                </button>
+                <button id="btn-save-as" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-[11px] text-white rounded font-medium flex items-center gap-1 transition whitespace-nowrap">
+                    <i data-lucide="file-output" class="w-3.5 h-3.5 text-cyan-400"></i> 別名保存
+                </button>
+                <button id="btn-csv-import" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-[11px] text-white rounded font-medium flex items-center gap-1 transition whitespace-nowrap">
+                    <i data-lucide="file-up" class="w-3.5 h-3.5 text-indigo-200"></i> CSV読込
+                </button>
+                <button id="btn-csv-export" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-[11px] text-white rounded font-medium flex items-center gap-1 transition whitespace-nowrap">
+                    <i data-lucide="file-down" class="w-3.5 h-3.5 text-emerald-300"></i> 全CSV出力
+                </button>
+                <span id="file-status-tag" class="text-[10px] px-1.5 py-0.5 rounded bg-rose-900/60 text-rose-300 border border-rose-700/50 flex items-center gap-1 ml-1 whitespace-nowrap">
+                    <i data-lucide="alert-circle" class="w-3 h-3"></i> 未読み込み
+                </span>
+            </div>
+        </div>
+
+        <nav class="bg-slate-800 border-t border-slate-700">
+            <div class="max-w-7xl mx-auto px-2 sm:px-4 flex space-x-1 overflow-x-auto no-scrollbar">
+                <button data-tab="tab-dashboard" class="tab-btn py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-medium text-emerald-400 border-b-2 border-emerald-400 flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> ダッシュボード・記帳
+                </button>
+                <button data-tab="tab-ledger" class="tab-btn py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-medium text-slate-300 hover:text-white border-b-2 border-transparent flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <i data-lucide="book-open" class="w-4 h-4"></i> 総勘定元帳
+                </button>
+                <button data-tab="tab-journal" class="tab-btn py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-medium text-slate-300 hover:text-white border-b-2 border-transparent flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <i data-lucide="list-todo" class="w-4 h-4"></i> 仕訳帳履歴
+                </button>
+                <button data-tab="tab-statements" class="tab-btn py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-medium text-slate-300 hover:text-white border-b-2 border-transparent flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> 決算書 (B/S・P/L)
+                </button>
+                <button data-tab="tab-settings" class="tab-btn py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-medium text-slate-300 hover:text-white border-b-2 border-transparent flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <i data-lucide="settings" class="w-4 h-4"></i> 設定・科目・補助科目
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- メインコンテンツ領域 (各ビューがここに描画されます) -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-3 space-y-2 sm:space-y-3">
+        <div class="min-h-[32px] flex items-center no-print">
+            <div id="unsaved-alert" class="hidden w-full bg-amber-50 border-l-4 border-amber-500 p-1.5 rounded-r shadow-sm flex flex-row justify-between items-center gap-2">
+                <div class="flex items-center gap-2 text-amber-800 text-xs">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                    <span class="truncate">未保存の変更があります。「上書き保存」を行ってください。</span>
+                </div>
+                <button id="btn-quick-save" class="text-[11px] bg-amber-600 hover:bg-amber-700 text-white px-2 py-0.5 rounded font-medium transition shrink-0">保存する</button>
+            </div>
+        </div>
+
+        <section id="tab-dashboard" class="tab-content active"><!-- ダッシュボードHTML --></section>
+        <section id="tab-ledger" class="tab-content"><!-- 総勘定元帳HTML --></section>
+        <section id="tab-journal" class="tab-content"><!-- 仕訳帳履歴HTML --></section>
+        <section id="tab-statements" class="tab-content"><!-- 決算書HTML --></section>
+        <section id="tab-settings" class="tab-content"><!-- 設定HTML --></section>
+    </main>
+
+    <!-- モーダルおよび非表示ファイル入力 -->
+    <input type="file" id="file-input" accept=".json" class="hidden">
+    <input type="file" id="csv-file-input" accept=".csv" class="hidden">
+
+    <!-- エントリーポイントの読み込み (ES Module) -->
+    <script type="module" src="./src/js/main.js"></script>
+    
+    <!-- 取引編集モーダル -->
+    <div id="tx-edit-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-4 space-y-3 text-xs">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                    <i data-lucide="edit-3" class="w-4 h-4 text-blue-600"></i> 取引データの編集
+                </h3>
+                <button id="btn-close-edit-modal" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <form id="tx-edit-form" class="space-y-3">
+                <input type="hidden" id="edit-tx-id">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-0.5">日付</label>
+                        <input type="date" id="edit-tx-date" required class="w-full p-1.5 border rounded">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-0.5">金額 (円)</label>
+                        <input type="number" id="edit-tx-amount" min="1" required class="w-full p-1.5 border rounded font-bold">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-0.5">摘要 / メモ</label>
+                    <input type="text" id="edit-tx-memo" class="w-full p-1.5 border rounded">
+                </div>
+                <div class="grid grid-cols-2 gap-2 bg-indigo-50/50 p-2.5 rounded border border-indigo-100">
+                    <div>
+                        <label class="block font-bold text-indigo-900 mb-1">【借方】</label>
+                        <label class="block text-[10px] text-slate-600 mb-0.5">借方科目</label>
+                        <select id="edit-debit-account" class="w-full p-1 border rounded mb-1.5"></select>
+                        <label class="block text-[10px] text-slate-600 mb-0.5">借方補助</label>
+                        <select id="edit-debit-sub" class="w-full p-1 border rounded"><option value="">(補助なし)</option></select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-indigo-900 mb-1">【貸方】</label>
+                        <label class="block text-[10px] text-slate-600 mb-0.5">貸方科目</label>
+                        <select id="edit-credit-account" class="w-full p-1 border rounded mb-1.5"></select>
+                        <label class="block text-[10px] text-slate-600 mb-0.5">貸方補助</label>
+                        <select id="edit-credit-sub" class="w-full p-1 border rounded"><option value="">(補助なし)</option></select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button type="button" id="btn-cancel-edit" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded">キャンセル</button>
+                    <button type="submit" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded shadow">変更を保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
