@@ -2,65 +2,38 @@ import { store } from '../store.js';
 import { calculateAccountBalance, calculateSubAccountBalance } from '../accounting.js';
 import { showToast, updateAppHeader } from '../main.js';
 
-export function initSettings() {
-    renderSettingsHtml();
+export async function initSettings() {
+    await renderSettingsHtml();
 }
 
-function renderSettingsHtml() {
+async function renderSettingsHtml() {
     const container = document.getElementById('tab-settings');
     if (!container) return;
-    container.innerHTML = `
-        <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-3 sm:p-4 space-y-4">
-            <div class="border-b pb-2 flex justify-between items-center">
-                <h2 class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                    <i data-lucide="settings" class="w-4 h-4 text-slate-600"></i> 基本情報・年度繰越・勘定科目の管理
-                </h2>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b text-xs">
-                <div>
-                    <label class="block font-semibold text-slate-600 mb-0.5">家計簿名・タイトル</label>
-                    <input type="text" id="setting-household-name" class="w-full p-1.5 border rounded">
-                </div>
-                <div>
-                    <label class="block font-semibold text-slate-600 mb-0.5">会計年度 (西暦)</label>
-                    <input type="number" id="setting-fiscal-year" class="w-full p-1.5 border rounded">
-                </div>
-                <div class="md:col-span-2 flex items-center justify-between">
-                    <button id="btn-save-basic" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded">基本情報を保存</button>
-                    <button id="btn-execute-rollover" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded flex items-center gap-1 shadow">
-                        <i data-lucide="calendar-arrow-right" class="w-4 h-4"></i> 年度繰越 (前年実績保存 & 翌年度へ)
-                    </button>
-                </div>
-            </div>
-
-            <div class="space-y-4 pt-1">
-                <h3 class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                    <i data-lucide="layers" class="w-3.5 h-3.5 text-emerald-600"></i> 勘定科目と補助科目の編集・追加
-                </h3>
-                <p class="text-[11px] text-slate-500">
-                    ※資産・負債・純資産科目では期首残高を設定できます。収益・費用科目には期首残高の概念はありません。
-                </p>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="category-management-container"></div>
-            </div>
-        </div>
-    `;
+    try {
+        const res = await fetch('./src/views/settings.html');
+        if (!res.ok) throw new Error('Failed to load settings.html');
+        container.innerHTML = await res.text();
+        if (window.lucide) lucide.createIcons();
+    } catch (e) {
+        console.error(e);
+    }
 
     const state = store.getState();
-    document.getElementById('setting-household-name').value = state.householdName || "我が家の家計簿";
-    document.getElementById('setting-fiscal-year').value = state.fiscalYear || new Date().getFullYear();
+    const nameEl = document.getElementById('setting-household-name');
+    const yearEl = document.getElementById('setting-fiscal-year');
+    if (nameEl) nameEl.value = state.householdName || "我が家の家計簿";
+    if (yearEl) yearEl.value = state.fiscalYear || new Date().getFullYear();
 
-    document.getElementById('btn-save-basic').addEventListener('click', saveBasicSettings);
-    document.getElementById('btn-execute-rollover').addEventListener('click', executeRollover);
+    document.getElementById('btn-save-basic')?.addEventListener('click', saveBasicSettings);
+    document.getElementById('btn-execute-rollover')?.addEventListener('click', executeRollover);
 
     renderCategoryManagement();
 }
 
 function saveBasicSettings() {
     const state = store.getState();
-    state.householdName = document.getElementById('setting-household-name').value || "我が家の家計簿";
-    state.fiscalYear = Number(document.getElementById('setting-fiscal-year').value) || new Date().getFullYear();
+    state.householdName = document.getElementById('setting-household-name')?.value || "我が家の家計簿";
+    state.fiscalYear = Number(document.getElementById('setting-fiscal-year')?.value) || new Date().getFullYear();
     store.setState(state);
     updateAppHeader();
     showToast('基本情報を保存しました。');
@@ -129,7 +102,7 @@ export function renderCategoryManagement() {
     for (let type in state.categories) {
         const isBS = (type === 'assets' || type === 'liabilities' || type === 'netAssets');
         const div = document.createElement('div');
-        div.className = "border rounded-lg p-3 bg-slate-50 space-y-2.5 text-xs";
+        div.className = "kakeibo-card space-y-2.5 text-xs";
         
         let html = `<h4 class="font-bold text-slate-800 border-b pb-1 flex justify-between items-center">
             <span>${typeNames[type]}</span>

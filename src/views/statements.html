@@ -1,0 +1,119 @@
+<div class="kakeibo-card p-3 sm:p-4 space-y-4">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-2 gap-2">
+        <div>
+            <h2 class="text-sm sm:text-base font-bold text-slate-900" id="statement-title">決算財務諸表</h2>
+            <p class="text-[11px] text-slate-500">貸借対照表 (B/S) および 損益計算書 (P/L) ※前年比較・前年対比・補助科目切替対応</p>
+        </div>
+        <div class="flex items-center gap-3 no-print flex-wrap">
+            <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none bg-slate-50 px-2 py-1 border rounded">
+                <input type="checkbox" id="hide-zero-accounts" class="rounded text-emerald-600 focus:ring-emerald-500">
+                <span class="font-medium text-slate-700">ゼロ・取引なしを非表示</span>
+            </label>
+            <div class="flex items-center gap-2">
+                <span class="text-slate-600 font-semibold text-xs">表示形式:</span>
+                <select id="statement-view-mode" class="kakeibo-select font-semibold w-auto">
+                    <option value="summary" selected>補助科目なし (科目単位)</option>
+                    <option value="detailed">補助科目あり (詳細表示)</option>
+                </select>
+            </div>
+            <button onclick="window.print()" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-800 text-white text-xs rounded font-medium flex items-center gap-1">
+                <i data-lucide="printer" class="w-3.5 h-3.5"></i> 印刷 / PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- 損益計算書 (P/L) -->
+    <div>
+        <h3 class="text-xs font-bold text-indigo-900 bg-indigo-50 px-2.5 py-1.5 rounded border-l-4 border-indigo-600 mb-2">
+            【損益計算書 (P/L) - 当期成績】
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- 収益の部 -->
+            <div class="kakeibo-card p-2.5">
+                <h4 class="font-bold text-xs text-emerald-700 mb-1.5 border-b pb-1">■ 収益の部</h4>
+                <div class="grid grid-cols-12 gap-1 font-bold text-[11px] text-slate-500 border-b pb-1 mb-1 text-right">
+                    <span class="col-span-4 text-left">科目</span>
+                    <span class="col-span-3">前年実績</span>
+                    <span class="col-span-3">当期実績</span>
+                    <span class="col-span-2">前年対比</span>
+                </div>
+                <div id="pl-income-list" class="space-y-1 text-xs"></div>
+                <div class="flex justify-between font-bold text-xs border-t pt-1.5 mt-1.5">
+                    <span>収益合計</span><span id="pl-income-total" class="text-emerald-700">¥0</span>
+                </div>
+            </div>
+
+            <!-- 費用の部 -->
+            <div class="kakeibo-card p-2.5">
+                <h4 class="font-bold text-xs text-rose-700 mb-1.5 border-b pb-1">■ 費用の部</h4>
+                <div class="grid grid-cols-12 gap-1 font-bold text-[11px] text-slate-500 border-b pb-1 mb-1 text-right">
+                    <span class="col-span-4 text-left">科目</span>
+                    <span class="col-span-3">前年実績</span>
+                    <span class="col-span-3">当期実績</span>
+                    <span class="col-span-2">前年対比</span>
+                </div>
+                <div id="pl-expense-list" class="space-y-1 text-xs"></div>
+                <div class="flex justify-between font-bold text-xs border-t pt-1.5 mt-1.5">
+                    <span>費用合計</span><span id="pl-expense-total" class="text-rose-700">¥0</span>
+                </div>
+            </div>
+        </div>
+        <div class="mt-2.5 bg-slate-50 p-2.5 rounded-lg border flex justify-between items-center text-xs font-bold">
+            <span>当期純利益 (または損失)</span>
+            <span id="pl-net-income" class="text-sm">¥0</span>
+        </div>
+    </div>
+
+    <!-- 貸借対照表 (B/S) -->
+    <div>
+        <h3 class="text-xs font-bold text-emerald-900 bg-emerald-50 px-2.5 py-1.5 rounded border-l-4 border-emerald-600 mb-2">
+            【貸借対照表 (B/S) - 財政状態】
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <!-- 資産の部 -->
+            <div class="kakeibo-card p-2.5">
+                <h4 class="font-bold text-xs text-blue-700 mb-1.5 border-b pb-1">■ 資産の部</h4>
+                <div class="grid grid-cols-12 gap-1 font-bold text-[10px] text-slate-500 border-b pb-1 mb-1 text-right">
+                    <span class="col-span-4 text-left">科目</span>
+                    <span class="col-span-3">前年</span>
+                    <span class="col-span-3">当期</span>
+                    <span class="col-span-2">対比</span>
+                </div>
+                <div id="bs-asset-list" class="space-y-1 text-xs"></div>
+                <div class="flex justify-between font-bold text-xs border-t pt-1.5 mt-1.5">
+                    <span>資産合計</span><span id="bs-asset-total">¥0</span>
+                </div>
+            </div>
+
+            <!-- 負債の部 -->
+            <div class="kakeibo-card p-2.5">
+                <h4 class="font-bold text-xs text-amber-700 mb-1.5 border-b pb-1">■ 負債の部</h4>
+                <div class="grid grid-cols-12 gap-1 font-bold text-[10px] text-slate-500 border-b pb-1 mb-1 text-right">
+                    <span class="col-span-4 text-left">科目</span>
+                    <span class="col-span-3">前年</span>
+                    <span class="col-span-3">当期</span>
+                    <span class="col-span-2">対比</span>
+                </div>
+                <div id="bs-liability-list" class="space-y-1 text-xs"></div>
+                <div class="flex justify-between font-bold text-xs border-t pt-1.5 mt-1.5">
+                    <span>負債合計</span><span id="bs-liability-total">¥0</span>
+                </div>
+            </div>
+
+            <!-- 純資産の部 -->
+            <div class="kakeibo-card p-2.5">
+                <h4 class="font-bold text-xs text-purple-700 mb-1.5 border-b pb-1">■ 純資産の部</h4>
+                <div class="grid grid-cols-12 gap-1 font-bold text-[10px] text-slate-500 border-b pb-1 mb-1 text-right">
+                    <span class="col-span-4 text-left">科目</span>
+                    <span class="col-span-3">前年</span>
+                    <span class="col-span-3">当期</span>
+                    <span class="col-span-2">対比</span>
+                </div>
+                <div id="bs-net-asset-list" class="space-y-1 text-xs"></div>
+                <div class="flex justify-between font-bold text-xs border-t pt-1.5 mt-1.5">
+                    <span>純資産合計</span><span id="bs-net-asset-total">¥0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

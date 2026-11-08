@@ -1,0 +1,224 @@
+@charset "UTF-8";
+
+/* ==========================================
+   1. 基本設定 & ベーススタイル
+   ========================================== */
+body {
+    font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+    background-color: #f1f5f9; /* slate-100 */
+    color: #1e293b; /* slate-800 */
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* スクロールバー非表示 */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* トースト通知のアニメーション */
+#toast-notification {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* ==========================================
+   2. 共通コンテナ & カードデザイン (.kakeibo-card)
+   ========================================== */
+.kakeibo-card {
+    background-color: #ffffff;
+    border-radius: 0.5rem; /* rounded-lg */
+    border: 1px solid #e2e8f0; /* border-slate-200 */
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+    padding: 0.75rem; /* p-3 */
+}
+
+@media (min-width: 640px) {
+    .kakeibo-card {
+        padding: 1rem; /* sm:p-4 */
+    }
+}
+
+.kakeibo-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.kakeibo-card-title {
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 700;
+    color: #0f172a; /* slate-900 */
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+/* フィルター・コントロール用のサブ領域 */
+.kakeibo-filter-box {
+    background-color: #f8fafc; /* slate-50 */
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem; /* rounded-md */
+    padding: 0.625rem; /* p-2.5 */
+}
+
+/* ==========================================
+   3. 共通フォーム部品 (.kakeibo-input, .kakeibo-select)
+   ========================================== */
+.kakeibo-input,
+.kakeibo-select {
+    width: 100%;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.75rem; /* text-xs */
+    border: 1px solid #cbd5e1; /* border-slate-300 */
+    border-radius: 0.25rem; /* rounded */
+    background-color: #ffffff;
+    color: #334155; /* slate-700 */
+    outline: none;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.kakeibo-input:focus,
+.kakeibo-select:focus {
+    border-color: #10b981; /* emerald-500 */
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.kakeibo-label {
+    display: block;
+    font-size: 0.6875rem; /* text-[11px] */
+    font-weight: 600;
+    color: #475569; /* slate-600 */
+    margin-bottom: 0.125rem;
+}
+
+/* ==========================================
+   4. 共通ボタン類 (.btn-*)
+   ========================================== */
+.btn-primary {
+    background-color: #059669; /* emerald-600 */
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 0.375rem 0.875rem;
+    border-radius: 0.25rem;
+    transition: background-color 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.btn-primary:hover {
+    background-color: #047857; /* emerald-700 */
+}
+
+.btn-secondary {
+    background-color: #e2e8f0; /* slate-200 */
+    color: #334155; /* slate-700 */
+    font-weight: 500;
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.25rem;
+    transition: background-color 0.15s ease;
+}
+.btn-secondary:hover {
+    background-color: #cbd5e1; /* slate-300 */
+}
+
+.btn-action-icon {
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+/* ==========================================
+   5. 共通テーブルデザイン (.kakeibo-table)
+   ========================================== */
+.kakeibo-table-container {
+    overflow-x: auto;
+    max-height: 55vh;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+}
+
+.kakeibo-table {
+    width: 100%;
+    text-align: left;
+    font-size: 0.75rem; /* text-xs */
+    border-collapse: collapse;
+    min-width: 700px;
+}
+
+.kakeibo-table thead {
+    position: sticky;
+    top: 0;
+    background-color: #f1f5f9; /* slate-100 */
+    color: #334155; /* slate-700 */
+    z-index: 10;
+}
+
+.kakeibo-table th {
+    padding: 0.5rem;
+    font-weight: 600;
+}
+
+.kakeibo-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid #f8fafc; /* divide-slate-100 */
+}
+
+.kakeibo-table tbody tr:hover {
+    background-color: #f8fafc; /* hover:bg-slate-50 */
+}
+
+.kakeibo-table .col-amount {
+    text-align: right;
+    font-weight: 700;
+}
+
+.kakeibo-table .col-debit {
+    color: #047857; /* emerald-700 */
+}
+
+.kakeibo-table .col-credit {
+    color: #be123c; /* rose-700 */
+}
+
+/* ==========================================
+   6. バッジ & サマリー表示
+   ========================================== */
+.kakeibo-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.6875rem; /* text-[11px] */
+    font-weight: 500;
+}
+.kakeibo-badge-sub {
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+
+/* 印刷用スタイル */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    body {
+        background: white;
+        color: black;
+    }
+}

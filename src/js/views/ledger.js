@@ -1,9 +1,8 @@
 import { store } from '../store.js';
 
-export function initLedger() {
-    renderLedgerHtml();
+export async function initLedger() {
+    await renderLedgerHtml();
 
-    // 安全にイベントリスナーを登録（要素が存在する場合のみ登録）
     const safeAddEvent = (id, event, handler) => {
         const el = document.getElementById(id);
         if (el) el.addEventListener(event, handler);
@@ -20,86 +19,18 @@ export function initLedger() {
     safeAddEvent('sort-ledger-order', 'change', renderLedger);
 }
 
-function renderLedgerHtml() {
+async function renderLedgerHtml() {
     const container = document.getElementById('tab-ledger');
     if (!container) return;
     
-    container.innerHTML = `
-        <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-3 space-y-2.5">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                <h2 class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                    <i data-lucide="book-open" class="w-4 h-4 text-indigo-600"></i> 総勘定元帳 (科目別明細)
-                </h2>
-                
-                <div class="flex flex-wrap items-center gap-1.5 text-xs">
-                    <div>
-                        <span class="text-slate-500 mr-1">区分:</span>
-                        <select id="ledger-type-select" class="p-1 border rounded font-semibold text-slate-700 bg-slate-50 text-xs">
-                            <option value="assets">資産</option>
-                            <option value="liabilities">負債</option>
-                            <option value="netAssets">純資産</option>
-                            <option value="income">収益</option>
-                            <option value="expenses">費用</option>
-                        </select>
-                    </div>
-                    <div>
-                        <span class="text-slate-500 mr-1">勘定科目:</span>
-                        <select id="ledger-account-select" class="p-1 border rounded font-semibold text-slate-700 text-xs"></select>
-                    </div>
-                    <div>
-                        <span class="text-slate-500 mr-1">補助科目:</span>
-                        <select id="ledger-sub-select" class="p-1 border rounded font-semibold text-slate-700 text-xs">
-                            <option value="ALL">(すべての補助)</option>
-                            <option value="NONE">(補助科目なし)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- フィルター＆コントロールバー -->
-            <div class="flex flex-wrap items-center justify-between gap-2 text-xs bg-slate-50 p-2 rounded-md border">
-                <div class="flex flex-wrap items-center gap-1.5">
-                    <div class="flex items-center gap-1">
-                        <span class="text-slate-500">期間:</span>
-                        <input type="date" id="filter-ledger-start" class="p-0.5 border rounded text-xs w-24">
-                        <span>〜</span>
-                        <input type="date" id="filter-ledger-end" class="p-0.5 border rounded text-xs w-24">
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <span class="text-slate-500">金額:</span>
-                        <input type="number" id="filter-ledger-min" placeholder="Min" class="p-0.5 border rounded text-xs w-16">
-                        <span>〜</span>
-                        <input type="number" id="filter-ledger-max" placeholder="Max" class="p-0.5 border rounded text-xs w-16">
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <span class="text-slate-500">表示順:</span>
-                        <select id="sort-ledger-order" class="p-0.5 border rounded text-xs font-semibold">
-                            <option value="date-asc" selected>日付昇順 (古い順)</option>
-                            <option value="date-desc">日付降順 (新しい順)</option>
-                            <option value="created-desc">入力順 (新しい順)</option>
-                            <option value="created-asc">入力順 (古い順)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="overflow-x-auto max-h-[55vh] overflow-y-auto border rounded-lg">
-                <table class="w-full text-left text-xs border-collapse min-w-[700px]">
-                    <thead class="sticky top-0 bg-slate-100 text-slate-700 shadow-sm z-10">
-                        <tr>
-                            <th class="p-2">日付</th>
-                            <th class="p-2">相手科目 (摘要)</th>
-                            <th class="p-2 text-right">借方金額</th>
-                            <th class="p-2 text-right">貸方金額</th>
-                            <th class="p-2 text-right font-bold" id="ledger-th-balance">残高</th>
-                            <th class="p-2 text-center no-print w-24">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ledger-tbody" class="divide-y divide-slate-100"></tbody>
-                </table>
-            </div>
-        </div>
-    `;
+    try {
+        const res = await fetch('./src/views/ledger.html');
+        if (!res.ok) throw new Error('Failed to load ledger.html');
+        container.innerHTML = await res.text();
+        if (window.lucide) lucide.createIcons();
+    } catch (e) {
+        console.error(e);
+    }
     renderLedgerAccountDropdown();
 }
 
@@ -145,7 +76,6 @@ function onLedgerAccountChange() {
 }
 
 export function renderLedger() {
-    // 描画ロジック
     const typeSelect = document.getElementById('ledger-type-select');
     const accSelect = document.getElementById('ledger-account-select');
     const subSelect = document.getElementById('ledger-sub-select');
@@ -180,7 +110,6 @@ export function renderLedger() {
 
     let normalSide = (catType === 'liabilities' || catType === 'netAssets' || catType === 'income') ? 'credit' : 'debit';
 
-    // ★追加: 科目・補助科目の期首残高（初期ベース残高）を算出してrunningBalanceの初期値とする
     let baseBal = 0;
     if (catType !== 'income' && catType !== 'expenses') {
         const catObj = state.categories[catType]?.find(c => c.name === accName);

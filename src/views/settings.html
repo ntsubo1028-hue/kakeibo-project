@@ -1,0 +1,35 @@
+<div class="kakeibo-card p-3 sm:p-4 space-y-4">
+    <div class="border-b pb-2 flex justify-between items-center">
+        <h2 class="kakeibo-card-title">
+            <i data-lucide="settings" class="w-4 h-4 text-slate-600"></i> 基本情報・年度繰越・勘定科目の管理
+        </h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b text-xs">
+        <div>
+            <label class="kakeibo-label">家計簿名・タイトル</label>
+            <input type="text" id="setting-household-name" class="kakeibo-input">
+        </div>
+        <div>
+            <label class="kakeibo-label">会計年度 (西暦)</label>
+            <input type="number" id="setting-fiscal-year" class="kakeibo-input">
+        </div>
+        <div class="md:col-span-2 flex items-center justify-between">
+            <button id="btn-save-basic" class="btn-secondary bg-slate-800 text-white hover:bg-slate-700 font-bold">基本情報を保存</button>
+            <button id="btn-execute-rollover" class="btn-primary bg-indigo-600 hover:bg-indigo-700 font-bold flex items-center gap-1 shadow">
+                <i data-lucide="calendar-arrow-right" class="w-4 h-4"></i> 年度繰越 (前年実績保存 & 翌年度へ)
+            </button>
+        </div>
+    </div>
+
+    <div class="space-y-4 pt-1">
+        <h3 class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="layers" class="w-3.5 h-3.5 text-emerald-600"></i> 勘定科目と補助科目の編集・追加
+        </h3>
+        <p class="text-[11px] text-slate-500">
+            ※資産・負債・純資産科目では期首残高を設定できます。収益・費用科目には期首残高の概念はありません。
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="category-management-container"></div>
+    </div>
+</div>
