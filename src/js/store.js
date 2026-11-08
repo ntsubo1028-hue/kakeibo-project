@@ -1,5 +1,7 @@
 // src/js/store.js
+import { auth, db, googleProvider, signInWithPopup, signOut, onAuthStateChanged, doc, getDoc, setDoc, collection, getDocs } from './firebase.js';
 
+// デフォルトの勘定科目・初期カテゴリ構造の定義
 export const DEFAULT_CATEGORIES = {
     assets: [
         { name: "現金", balance: 0, sub: [{ name: "手元現金", balance: 0 }, { name: "その他現金", balance: 0 }] },
@@ -34,9 +36,10 @@ export const DEFAULT_CATEGORIES = {
 
 class Store {
     constructor() {
+        // アプリケーションの基本データ構造
         this.appData = {
             householdName: "我が家の家計簿",
-            fiscalYear: 2026,
+            fiscalYear: 2026, // 基準となる会計年度
             categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
             transactions: [],
             prevActuals: {},
@@ -50,6 +53,139 @@ class Store {
         this.maxHistory = 30;
         this.isDirty = false;
         this.fileHandle = null;
+
+        // Firebase 認証・クラウド同期用プロパティ
+        this.currentUser = null;
+        this.isLoaded = false;
+    }
+
+    // ==========================================
+    // 🌐 Firebase 認証 & クラウド同期メソッド
+    // ==========================================
+
+    // ユーザーIDと現在の会計年度からFirestoreのドキュメント参照（パス）を動的に生成
+    getDocRef() {
+        if (!this.currentUser) return null;
+        const year = this.appData.fiscalYear || new Date().getFullYear();
+        // パス例: users/{uid}/kakeibo/2026, users/{uid}/kakeibo/2027 ...
+        return doc(db, "users", this.currentUser.uid, "kakeibo", String(year));
+    }
+
+    // クラウド上に存在する年度のリスト（ドキュメントID一覧）をFirestoreから動的に取得
+    async getAvailableYears() {
+        if (!this.currentUser) {
+            return [String(this.appData.fiscalYear || new Date().getFullYear())];
+        }
+        try {
+            const kakeiboRef = collection(db, "users", this.currentUser.uid, "kakeibo");
+            const querySnapshot = await getDocs(kakeiboRef);
+            const years = [];
+            querySnapshot.forEach((docSnap) => {
+                years.push(docSnap.id);
+            });
+            years.sort(); // 昇順に並び替え
+
+            if (years.length === 0) {
+                years.push(String(this.appData.fiscalYear || new Date().getFullYear()));
+            }
+            return years;
+        } catch (error) {
+            console.error("年度リスト取得エラー:", error);
+            return [String(this.appData.fiscalYear || new Date().getFullYear())];
+        }
+    }
+
+    // 認証状態の監視を開始し、ログイン時に自動でデータをロード
+    async initAuth(onAuthChangedCallback) {
+        onAuthStateChanged(auth, async (user) => {
+            this.currentUser = user;
+            if (user) {
+                await this.loadFromFirestore();
+            } else {
+                // ログアウト時は初期状態にリセット
+                this.appData = {
+                    householdName: "我が家の家計簿",
+                    fiscalYear: 2026,
+                    categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
+                    transactions: [],
+                    prevActuals: {},
+                    templates: []
+                };
+                this.isLoaded = false;
+                this.notifyListeners();
+            }
+            if (typeof onAuthChangedCallback === 'function') {
+                onAuthChangedCallback(user);
+            }
+        });
+    }
+
+    // Googleポップアップログインを実行
+    async login() {
+        try {
+            await signInWithPopup(auth, googleProvider);
+        } catch (error) {
+            console.error("ログインエラー:", error);
+            alert("ログインに失敗しました: " + error.message);
+        }
+    }
+
+    // ログアウトを実行
+    async logout() {
+        try {
+            await signOut(auth);
+        } catch (error) {
+            console.error("ログアウトエラー:", error);
+        }
+    }
+
+    // 現在選択されている年度のドキュメントからデータをロード
+    async loadFromFirestore() {
+        if (!this.currentUser) return;
+        try {
+            const docRef = this.getDocRef();
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                this.appData = docSnap.data();
+            } else {
+                // データがまだない場合は新規作成として初期保存
+                this.appData.transactions = [];
+                this.appData.prevActuals = {};
+                await this.saveToFirestore();
+            }
+            this.isLoaded = true;
+            this.notifyListeners();
+        } catch (error) {
+            console.error("データ読み込みエラー:", error);
+        }
+    }
+
+    // 現在選択されている年度のドキュメントにデータを保存
+    async saveToFirestore() {
+        if (!this.currentUser) return;
+        try {
+            const docRef = this.getDocRef();
+            await setDoc(docRef, this.appData);
+        } catch (error) {
+            console.error("データ保存エラー:", error);
+        }
+    }
+
+    // 会計年度を切り替えて、該当年度のクラウドデータを取得し直す
+    async changeFiscalYear(newYear) {
+        this.appData.fiscalYear = Number(newYear);
+        await this.loadFromFirestore();
+    }
+
+    // ==========================================
+    // 🔄 状態管理 & 自動再描画イベント
+    // ==========================================
+
+    notifyListeners() {
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('kakeibo-data-loaded'));
+        }
     }
 
     getState() {
@@ -67,10 +203,9 @@ class Store {
         this.appData = JSON.parse(JSON.stringify(newState));
         this.setDirty(true);
 
-        // ★ここで自動的に全体再描画イベントを発火！
-        if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('kakeibo-data-loaded'));
-        }
+        // データ変更時は自動でクラウドに保存 ＆ 再描画
+        this.saveToFirestore();
+        this.notifyListeners();
     }
 
     undo() {
@@ -79,10 +214,8 @@ class Store {
         this.appData = this.undoStack.pop();
         this.setDirty(true);
 
-        // ★Undo時も自動発火
-        if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('kakeibo-data-loaded'));
-        }
+        this.saveToFirestore();
+        this.notifyListeners();
         return true;
     }
 
@@ -92,11 +225,22 @@ class Store {
         this.appData = this.redoStack.pop();
         this.setDirty(true);
 
-        // ★Redo時も自動発火
-        if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('kakeibo-data-loaded'));
-        }
+        this.saveToFirestore();
+        this.notifyListeners();
         return true;
+    }
+
+    // ★修正: Googleログイン中（クラウド同期中）は未保存アラートを常に非表示にする
+    setDirty(status) {
+        this.isDirty = status;
+        const alertBox = document.getElementById('unsaved-alert');
+        if (alertBox) {
+            if (this.currentUser || !this.isDirty) {
+                alertBox.classList.add('hidden');
+            } else {
+                alertBox.classList.remove('hidden');
+            }
+        }
     }
 
     canUndo() {
@@ -105,15 +249,6 @@ class Store {
 
     canRedo() {
         return this.redoStack.length > 0;
-    }
-
-    setDirty(status) {
-        this.isDirty = status;
-        const alertBox = document.getElementById('unsaved-alert');
-        if (alertBox) {
-            if (this.isDirty) alertBox.classList.remove('hidden');
-            else alertBox.classList.add('hidden');
-        }
     }
 
     getAllAccountNames() {

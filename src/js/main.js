@@ -6,26 +6,96 @@ import { initJournal, renderJournalTable } from './views/journal.js';
 import { initStatements, renderFinancialStatements } from './views/statements.js';
 import { initSettings, renderCategoryManagement } from './views/settings.js';
 
-window.addEventListener('DOMContentLoaded', () => {
+// DOM読み込み完了時の初期化処理
+window.addEventListener('DOMContentLoaded', async () => {
+    // Lucideアイコンの初期化
     if (window.lucide) lucide.createIcons();
 
-    // 1. 各ビューの初期化
+    // 0. Firebase 認証の監視とUI切り替えの初期化
+    store.initAuth(async (user) => {
+        const loginBtn = document.getElementById('btn-google-login');
+        const profileArea = document.getElementById('user-profile-area');
+        const emailDisplay = document.getElementById('user-email-display');
+        const localFileControls = document.getElementById('local-file-controls');
+        const unsavedAlert = document.getElementById('unsaved-alert');
+
+        if (user) {
+            // ① Googleログイン中の場合
+            if (loginBtn) loginBtn.classList.add('hidden');
+            if (profileArea) {
+                profileArea.classList.remove('hidden');
+                profileArea.classList.add('flex');
+            }
+            if (emailDisplay) emailDisplay.textContent = user.email;
+            
+            // クラウド同期中は手動のファイル操作エリアおよび未保存アラートを非表示にする
+            if (localFileControls) localFileControls.classList.add('hidden');
+            if (unsavedAlert) unsavedAlert.classList.add('hidden');
+
+            showToast('クラウドデータベースと接続しました（自動保存中）。');
+        } else {
+            // ② 未ログイン（ローカル運用）の場合
+            if (loginBtn) loginBtn.classList.remove('hidden');
+            if (profileArea) profileArea.classList.add('hidden');
+            if (emailDisplay) emailDisplay.textContent = '';
+            
+            // ローカル運用のときだけ手動のファイル操作エリアを表示する
+            if (localFileControls) localFileControls.classList.remove('hidden');
+
+            showToast('ローカルファイルモードで動作しています。');
+        }
+        // 認証状態の変化やデータロードに合わせて年度プルダウンを更新
+        await updateFiscalYearDropdown();
+    });
+
+    // ログイン・ログアウトボタンのクリックイベント配線
+    document.getElementById('btn-google-login')?.addEventListener('click', () => {
+        store.login();
+    });
+
+    document.getElementById('btn-logout')?.addEventListener('click', () => {
+        if (confirm('ログアウトしますか？')) {
+            store.logout();
+            showToast('ログアウトしました。');
+        }
+    });
+
+    // 会計年度セレクトボックスの変更イベント配線
+    const fiscalYearSelect = document.getElementById('fiscal-year-select');
+    if (fiscalYearSelect) {
+        fiscalYearSelect.addEventListener('change', async (e) => {
+            const newYear = Number(e.target.value);
+            if (confirm(`${newYear}年度のデータに切り替えますか？`)) {
+                showToast(`${newYear}年度のデータを読み込んでいます...`);
+                await store.changeFiscalYear(newYear);
+                showToast(`${newYear}年度のデータを読み込みました。`);
+            } else {
+                // キャンセルされた場合はセレクトボックスの表示を元に戻す
+                fiscalYearSelect.value = store.getState().fiscalYear;
+            }
+        });
+    }
+
+    // 1. 各ビュー（ダッシュボード、元帳、仕訳帳、決算書、設定）の初期化
     initDashboard();
     initLedger();
     initJournal();
     initStatements();
     initSettings();
 
-    // 2. 編集モーダルのイベント配線
+    // データベース上の存在年度に合わせてセレクトボックスを初期化
+    await updateFiscalYearDropdown();
+
+    // 2. 取引編集モーダルのイベント配線
     setupEditModalEvents();
 
-    // 3. タブ切り替えの配線
+    // 3. タブ切り替え機能の配線
     setupTabs();
 
     // 4. Undo / Redo ボタンおよびキーボードショートカットの配線
     setupUndoRedo();
 
-    // 5. ヘッダーボタン・ファイル操作の配線
+    // 5. ヘッダーボタン・ファイル操作（JSON/CSV）のイベント配線
     document.getElementById('btn-open')?.addEventListener('click', triggerFileInput);
     document.getElementById('btn-save')?.addEventListener('click', saveFileDirect);
     document.getElementById('btn-save-as')?.addEventListener('click', saveFileAs);
@@ -35,8 +105,8 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('file-input')?.addEventListener('change', handleFileSelect);
     document.getElementById('csv-file-input')?.addEventListener('change', handleCsvImport);
 
-    // データロード / 状態変更時の一括再描画イベント
-    window.addEventListener('kakeibo-data-loaded', () => {
+    // データロード / 状態変更時の一括再描画イベントリスナー
+    window.addEventListener('kakeibo-data-loaded', async () => {
         updateAppHeader();
         updateDashboard();
         renderLedgerAccountDropdown();
@@ -45,28 +115,35 @@ window.addEventListener('DOMContentLoaded', () => {
         renderFinancialStatements();
         renderCategoryManagement();
         updateUndoRedoButtonStates();
+        
+        // セレクトボックスの選択肢および状態も同期
+        await updateFiscalYearDropdown();
     });
 
     updateAppHeader();
     updateUndoRedoButtonStates();
 });
 
+// タブ切り替え制御
 function setupTabs() {
     const tabButtons = document.querySelectorAll('.tab-btn');
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             const targetId = btn.getAttribute('data-tab');
 
+            // 全てのタブコンテンツを非表示にし、ボタンのアクティブスタイルを解除
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => {
                 el.classList.remove('text-emerald-400', 'border-emerald-400');
                 el.classList.add('text-slate-300', 'border-transparent');
             });
 
+            // 選択されたタブを表示し、アクティブスタイルを適用
             document.getElementById(targetId)?.classList.add('active');
             btn.classList.remove('text-slate-300', 'border-transparent');
             btn.classList.add('text-emerald-400', 'border-emerald-400');
 
+            // タブごとの遅延レンダリング
             if (targetId === 'tab-ledger') renderLedger();
             if (targetId === 'tab-journal') renderJournalTable();
             if (targetId === 'tab-statements') renderFinancialStatements();
@@ -96,21 +173,18 @@ function setupUndoRedo() {
         }
     });
 
-    // キーボードショートカット (Ctrl+Z / Ctrl+Y)
+    // キーボードショートカット (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z)
     window.addEventListener('keydown', (e) => {
-        // 入力フォームやテキストエリアにフォーカスがある場合はショートカットを無効化
         if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
 
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
             e.preventDefault();
             if (e.shiftKey) {
-                // Ctrl+Shift+Z は Redo
                 if (store.redo()) {
                     window.dispatchEvent(new CustomEvent('kakeibo-data-loaded'));
                     showToast('操作をやり直しました。');
                 }
             } else {
-                // Ctrl+Z は Undo
                 if (store.undo()) {
                     window.dispatchEvent(new CustomEvent('kakeibo-data-loaded'));
                     showToast('操作を元に戻しました。');
@@ -133,14 +207,14 @@ function updateUndoRedoButtonStates() {
     if (redoBtn) redoBtn.disabled = !store.canRedo();
 }
 
+// ヘッダーの家計簿名などの更新
 export function updateAppHeader() {
     const state = store.getState();
     const nameEl = document.getElementById('display-household-name');
-    const yearEl = document.getElementById('display-fiscal-year');
     if (nameEl) nameEl.textContent = state.householdName;
-    if (yearEl) yearEl.textContent = `会計年度: ${state.fiscalYear} 年度`;
 }
 
+// トースト通知の表示
 export function showToast(msg) {
     const toast = document.getElementById('toast-notification');
     const msgEl = document.getElementById('toast-message');
@@ -213,7 +287,6 @@ export function setupEditModalEvents() {
     const debitAccSelect = document.getElementById('edit-debit-account');
     const creditAccSelect = document.getElementById('edit-credit-account');
 
-    // ★追加: 勘定科目が変更されたら、対応する補助科目の選択肢を動的に更新する
     if (debitAccSelect) {
         debitAccSelect.onchange = () => updateEditSubAccounts('debit');
     }
@@ -289,3 +362,23 @@ window.deleteTransaction = function(id) {
         showToast('仕訳データを削除しました。');
     }
 };
+
+// Firestore上のデータ存在状況をスキャンして、存在する年度だけを選択肢に並べる関数
+async function updateFiscalYearDropdown() {
+    const select = document.getElementById('fiscal-year-select');
+    if (!select) return;
+
+    // ストアから実際にデータが存在する年度リストを取得
+    const availableYears = await store.getAvailableYears();
+
+    select.innerHTML = '';
+    availableYears.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = `${year}年度`;
+        select.appendChild(option);
+    });
+
+    // 現在選択中の年度を反映
+    select.value = store.getState().fiscalYear;
+}

@@ -35,11 +35,19 @@
         <div class="max-w-7xl mx-auto px-3 sm:px-4 py-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <div class="flex items-center space-x-2">
                 <i data-lucide="wallet" class="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400 shrink-0"></i>
-                <div class="min-w-0">
-                    <h1 class="text-sm sm:text-base font-bold tracking-wide truncate flex items-center gap-1.5">
-                        <span id="display-household-name">我が家の家計簿</span> 複式会計
-                    </h1>
-                    <p class="text-[10px] text-slate-400" id="display-fiscal-year">会計年度: 2026 年度</p>
+                <div class="min-w-0 flex items-center gap-3">
+                    <div>
+                        <h1 class="text-sm sm:text-base font-bold tracking-wide truncate flex items-center gap-1.5">
+                            <span id="display-household-name">我が家の家計簿</span> 複式会計
+                        </h1>
+                        <p class="text-[10px] text-slate-400" id="display-fiscal-year">クラウド同期中</p>
+                    </div>
+                    <!-- 会計年度切り替えセレクトボックス -->
+                    <div class="flex items-center gap-1 bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
+                        <span class="text-[10px] text-slate-400">年度:</span>
+                        <select id="fiscal-year-select" class="bg-slate-900 text-emerald-400 font-bold text-xs rounded px-1.5 py-0.5 outline-none border border-slate-700 cursor-pointer">
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -53,8 +61,8 @@
                 </button>
             </div>
 
-            <!-- ファイル操作コントロール -->
-            <div class="flex items-center space-x-1 sm:space-x-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700 overflow-x-auto no-scrollbar shrink-0">
+            <!-- ローカルファイル操作コントロール（未ログイン時のみ表示） -->
+            <div id="local-file-controls" class="flex items-center space-x-1 sm:space-x-1.5 bg-slate-800 p-1 rounded-lg border border-slate-700 overflow-x-auto no-scrollbar shrink-0">
                 <button id="btn-open" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-[11px] text-white rounded font-medium flex items-center gap-1 transition whitespace-nowrap">
                     <i data-lucide="folder-open" class="w-3.5 h-3.5 text-amber-400"></i> 開く
                 </button>
@@ -73,6 +81,21 @@
                 <span id="file-status-tag" class="text-[10px] px-1.5 py-0.5 rounded bg-rose-900/60 text-rose-300 border border-rose-700/50 flex items-center gap-1 ml-1 whitespace-nowrap">
                     <i data-lucide="alert-circle" class="w-3 h-3"></i> 未読み込み
                 </span>
+            </div>
+
+            <!-- 認証・ログイン状態エリア -->
+            <div id="auth-container" class="flex items-center gap-2">
+                <button id="btn-google-login" class="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-800 rounded text-xs font-bold shadow flex items-center gap-1.5 transition">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C9.28 19.27 6.5 16.42 6.5 12s2.78-7.27 6.5-7.27c1.63 0 3.12.59 4.27 1.57l2.04-2.04C15.98 2.65 14.33 2 13 2 7.48 2 3 6.48 3 12s4.48 10 10 10c5.52 0 10-4.48 10-10 0-.67-.07-1.33-.2-2z"/></svg>
+                    Googleログイン
+                </button>
+                
+                <div id="user-profile-area" class="hidden items-center gap-2">
+                    <span id="user-email-display" class="text-[10px] text-slate-300 truncate max-w-[100px]"></span>
+                    <button id="btn-logout" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-rose-300 text-[10px] rounded border border-slate-700 transition">
+                        ログアウト
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -97,7 +120,7 @@
         </nav>
     </header>
 
-    <!-- メインコンテンツ領域 (各ビューがここに描画されます) -->
+    <!-- メインコンテンツ領域 -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-3 space-y-2 sm:space-y-3">
         <div class="min-h-[32px] flex items-center no-print">
             <div id="unsaved-alert" class="hidden w-full bg-amber-50 border-l-4 border-amber-500 p-1.5 rounded-r shadow-sm flex flex-row justify-between items-center gap-2">
@@ -120,7 +143,7 @@
     <input type="file" id="file-input" accept=".json" class="hidden">
     <input type="file" id="csv-file-input" accept=".csv" class="hidden">
 
-    <!-- エントリーポイントの読み込み (ES Module) -->
+    <!-- エントリーポイントの読み込み -->
     <script type="module" src="./src/js/main.js"></script>
     
     <!-- 取引編集モーダル -->
