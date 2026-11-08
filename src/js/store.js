@@ -1,5 +1,19 @@
 // src/js/store.js
-import { auth, db, googleProvider, signInWithPopup, signOut, onAuthStateChanged, doc, getDoc, setDoc, collection, getDocs } from './firebase.js';
+import { 
+    auth, 
+    db, 
+    googleProvider, 
+    signInWithPopup, 
+    signInWithRedirect, 
+    getRedirectResult, 
+    signOut, 
+    onAuthStateChanged, 
+    doc, 
+    getDoc, 
+    setDoc, 
+    collection, 
+    getDocs 
+} from './firebase.js';
 
 // デフォルトの勘定科目・初期カテゴリ構造の定義
 export const DEFAULT_CATEGORIES = {
@@ -67,7 +81,7 @@ class Store {
     getDocRef() {
         if (!this.currentUser) return null;
         const year = this.appData.fiscalYear || new Date().getFullYear();
-        // パス例: users/{uid}/kakeibo/2026, users/{uid}/kakeibo/2027 ...
+        // パス構造: users/{uid}/kakeibo/{fiscalYear}
         return doc(db, "users", this.currentUser.uid, "kakeibo", String(year));
     }
 
@@ -95,8 +109,20 @@ class Store {
         }
     }
 
-    // 認証状態の監視を開始し、ログイン時に自動でデータをロード
+    // 認証状態の監視およびスマートフォン向けリダイレクト結果の受け取り処理
     async initAuth(onAuthChangedCallback) {
+        // ① リダイレクト認証からの復帰時に結果を受信
+        try {
+            const result = await getRedirectResult(auth);
+            if (result && result.user) {
+                this.currentUser = result.user;
+                await this.loadFromFirestore();
+            }
+        } catch (error) {
+            console.error("リダイレクトログインエラー:", error);
+        }
+
+        // ② 通常の認証状態監視
         onAuthStateChanged(auth, async (user) => {
             this.currentUser = user;
             if (user) {
@@ -120,10 +146,16 @@ class Store {
         });
     }
 
-    // Googleポップアップログインを実行
+    // ログイン処理（PCはポップアップ、スマホ等のモバイルはリダイレクト認証に自動切り替え）
     async login() {
         try {
-            await signInWithPopup(auth, googleProvider);
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            if (isMobile) {
+                await signInWithRedirect(auth, googleProvider);
+            } else {
+                await signInWithPopup(auth, googleProvider);
+            }
         } catch (error) {
             console.error("ログインエラー:", error);
             alert("ログインに失敗しました: " + error.message);
@@ -230,7 +262,15 @@ class Store {
         return true;
     }
 
-    // ★修正: Googleログイン中（クラウド同期中）は未保存アラートを常に非表示にする
+    canUndo() {
+        return this.undoStack.length > 0;
+    }
+
+    canRedo() {
+        return this.redoStack.length > 0;
+    }
+
+    // Googleログイン中（クラウド同期中）は未保存アラートを常に非表示にする
     setDirty(status) {
         this.isDirty = status;
         const alertBox = document.getElementById('unsaved-alert');
@@ -241,14 +281,6 @@ class Store {
                 alertBox.classList.remove('hidden');
             }
         }
-    }
-
-    canUndo() {
-        return this.undoStack.length > 0;
-    }
-
-    canRedo() {
-        return this.redoStack.length > 0;
     }
 
     getAllAccountNames() {
