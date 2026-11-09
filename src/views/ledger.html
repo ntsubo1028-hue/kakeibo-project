@@ -32,27 +32,41 @@
     <!-- フィルター＆コントロールバー -->
     <div class="kakeibo-filter-box flex flex-wrap items-center justify-between gap-2 text-xs">
         <div class="flex flex-wrap items-center gap-1.5">
+            <!-- キーワード検索 -->
+            <div>
+                <input type="text" id="filter-ledger-keyword" placeholder="キーワード検索" class="kakeibo-input w-36">
+            </div>
+            <!-- 期間範囲 -->
             <div class="flex items-center gap-1">
                 <span class="text-slate-500">期間:</span>
                 <input type="date" id="filter-ledger-start" class="kakeibo-input w-24">
                 <span>〜</span>
                 <input type="date" id="filter-ledger-end" class="kakeibo-input w-24">
             </div>
+            <!-- 金額範囲 -->
             <div class="flex items-center gap-1">
                 <span class="text-slate-500">金額:</span>
                 <input type="number" id="filter-ledger-min" placeholder="Min" class="kakeibo-input w-16">
                 <span>〜</span>
                 <input type="number" id="filter-ledger-max" placeholder="Max" class="kakeibo-input w-16">
             </div>
+            <!-- 表示順 -->
             <div class="flex items-center gap-1">
                 <span class="text-slate-500">表示順:</span>
                 <select id="sort-ledger-order" class="kakeibo-select font-semibold w-auto">
-                    <option value="date-asc" selected>日付昇順 (古い順)</option>
                     <option value="date-desc">日付降順 (新しい順)</option>
-                    <option value="created-desc">入力順 (新しい順)</option>
-                    <option value="created-asc">入力順 (古い順)</option>
+                    <option value="date-asc">日付昇順 (古い順)</option>
+                    <option value="amount-desc">金額 (高い順)</option>
+                    <option value="amount-asc">金額 (安い順)</option>
                 </select>
             </div>
+        </div>
+
+        <!-- 条件クリアボタン -->
+        <div>
+            <button id="btn-clear-ledger-filter" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded text-xs flex items-center gap-1 transition" title="条件をクリア">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> クリア
+            </button>
         </div>
     </div>
 
