@@ -4,8 +4,6 @@ import {
     db, 
     googleProvider, 
     signInWithPopup, 
-    signInWithRedirect, 
-    getRedirectResult, 
     signOut, 
     onAuthStateChanged, 
     doc, 
@@ -109,20 +107,8 @@ class Store {
         }
     }
 
-    // 認証状態の監視およびスマートフォン向けリダイレクト結果の受け取り処理
+    // 認証状態の監視を開始し、ログイン時に自動でデータをロード
     async initAuth(onAuthChangedCallback) {
-        // ① リダイレクト認証からの復帰時に結果を受信
-        try {
-            const result = await getRedirectResult(auth);
-            if (result && result.user) {
-                this.currentUser = result.user;
-                await this.loadFromFirestore();
-            }
-        } catch (error) {
-            console.error("リダイレクトログインエラー:", error);
-        }
-
-        // ② 通常の認証状態監視
         onAuthStateChanged(auth, async (user) => {
             this.currentUser = user;
             if (user) {
@@ -146,16 +132,10 @@ class Store {
         });
     }
 
-    // ログイン処理（PCはポップアップ、スマホ等のモバイルはリダイレクト認証に自動切り替え）
+    // Googleログイン処理（ポップアップ認証に一本化）
     async login() {
         try {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-            if (isMobile) {
-                await signInWithRedirect(auth, googleProvider);
-            } else {
-                await signInWithPopup(auth, googleProvider);
-            }
+            await signInWithPopup(auth, googleProvider);
         } catch (error) {
             console.error("ログインエラー:", error);
             alert("ログインに失敗しました: " + error.message);
