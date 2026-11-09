@@ -265,7 +265,6 @@ export function renderLedger() {
 
     const balanceMap = new Map();
     sortedForBalance.forEach(t => {
-        // 厳密な借方・貸方の判定（同一科目間振替対応）
         let isDebit = (t.debit.acc === accName && (subMode === 'ALL' || (subMode === 'NONE' ? !t.debit.sub : t.debit.sub === subMode)));
         let isCredit = (t.credit.acc === accName && (subMode === 'ALL' || (subMode === 'NONE' ? !t.credit.sub : t.credit.sub === subMode)));
         const amt = Number(t.amount);
@@ -325,7 +324,7 @@ export function renderLedger() {
         });
     }
 
-    // 4. 表示順（ソート）の適用（入力順の昇順・降順の向きを修正）[cite: 8]
+    // 4. 表示順（ソート）の適用（入力昇順・降順の引き算の向きを修正）
     if (sortOrder) {
         matchedTxs.sort((a, b) => {
             if (sortOrder === 'date-desc') {
@@ -333,11 +332,11 @@ export function renderLedger() {
             } else if (sortOrder === 'date-asc') {
                 return a.date.localeCompare(b.date) || state.transactions.indexOf(a) - state.transactions.indexOf(b);
             } else if (sortOrder === 'created-desc') {
-                // 入力降順（新しい順）：配列のインデックスが大きいものを先頭に
-                return state.transactions.indexOf(b) - state.transactions.indexOf(a);
-            } else if (sortOrder === 'created-asc') {
-                // 入力昇順（古い順）：配列のインデックスが小さいものを先頭に
+                // 入力降順（新しい順）：配列のインデックスが小さい（新着）ものを先頭に
                 return state.transactions.indexOf(a) - state.transactions.indexOf(b);
+            } else if (sortOrder === 'created-asc') {
+                // 入力昇順（古い順）：配列のインデックスが大きい（古い）ものを先頭に
+                return state.transactions.indexOf(b) - state.transactions.indexOf(a);
             }
             return 0;
         });
@@ -352,7 +351,6 @@ export function renderLedger() {
     const hasOtherFilter = (minVal !== '' || maxVal !== '' || keyword !== '' || sortOrder === 'created-asc' || sortOrder === 'created-desc');
 
     matchedTxs.forEach(t => {
-        // 行描画時の厳密な借方・貸方の判定（同一科目間振替対応）
         let isDebit = (t.debit.acc === accName && (subMode === 'ALL' || (subMode === 'NONE' ? !t.debit.sub : t.debit.sub === subMode)));
         let isCredit = (t.credit.acc === accName && (subMode === 'ALL' || (subMode === 'NONE' ? !t.credit.sub : t.credit.sub === subMode)));
         const amt = Number(t.amount);
