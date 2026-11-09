@@ -265,8 +265,9 @@ export function renderLedger() {
 
     const balanceMap = new Map();
     sortedForBalance.forEach(t => {
-        let isDebit = (t.debit.acc === accName);
-        let isCredit = (t.credit.acc === accName);
+        // 厳密な借方・貸方の判定（同一科目間振替対応）
+        let isDebit = (t.debit.acc === accName && (subMode === 'ALL' || (subMode === 'NONE' ? !t.debit.sub : t.debit.sub === subMode)));
+        let isCredit = (t.credit.acc === accName && (subMode === 'ALL' || (subMode === 'NONE' ? !t.credit.sub : t.credit.sub === subMode)));
         const amt = Number(t.amount);
         
         if (normalSide === 'debit') {
@@ -324,7 +325,7 @@ export function renderLedger() {
         });
     }
 
-    // 4. 表示順（ソート）の適用
+    // 4. 表示順（ソート）の適用（入力順の昇順・降順の向きを修正）[cite: 8]
     if (sortOrder) {
         matchedTxs.sort((a, b) => {
             if (sortOrder === 'date-desc') {
@@ -332,8 +333,10 @@ export function renderLedger() {
             } else if (sortOrder === 'date-asc') {
                 return a.date.localeCompare(b.date) || state.transactions.indexOf(a) - state.transactions.indexOf(b);
             } else if (sortOrder === 'created-desc') {
+                // 入力降順（新しい順）：配列のインデックスが大きいものを先頭に
                 return state.transactions.indexOf(b) - state.transactions.indexOf(a);
             } else if (sortOrder === 'created-asc') {
+                // 入力昇順（古い順）：配列のインデックスが小さいものを先頭に
                 return state.transactions.indexOf(a) - state.transactions.indexOf(b);
             }
             return 0;
@@ -346,12 +349,12 @@ export function renderLedger() {
     }
 
     // 5. 残高表示の判定
-    // 「入力順（昇順・降順）」選択時、または「金額範囲やキーワードなどの他フィルター」使用時は残高非表示
     const hasOtherFilter = (minVal !== '' || maxVal !== '' || keyword !== '' || sortOrder === 'created-asc' || sortOrder === 'created-desc');
 
     matchedTxs.forEach(t => {
-        let isDebit = (t.debit.acc === accName);
-        let isCredit = (t.credit.acc === accName);
+        // 行描画時の厳密な借方・貸方の判定（同一科目間振替対応）
+        let isDebit = (t.debit.acc === accName && (subMode === 'ALL' || (subMode === 'NONE' ? !t.debit.sub : t.debit.sub === subMode)));
+        let isCredit = (t.credit.acc === accName && (subMode === 'ALL' || (subMode === 'NONE' ? !t.credit.sub : t.credit.sub === subMode)));
         const amt = Number(t.amount);
         const rowBalance = balanceMap.get(t.id) ?? 0;
 
