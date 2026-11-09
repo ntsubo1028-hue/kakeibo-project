@@ -18,6 +18,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         const emailDisplay = document.getElementById('user-email-display');
         const localFileControls = document.getElementById('local-file-controls');
         const unsavedAlert = document.getElementById('unsaved-alert');
+        const syncStatusText = document.getElementById('sync-status-text'); // ステータス表示要素
 
         if (user) {
             // ① Googleログイン中の場合
@@ -31,7 +32,11 @@ window.addEventListener('DOMContentLoaded', async () => {
             // クラウド同期中は手動のファイル操作エリアおよび未保存アラートを非表示にする
             if (localFileControls) localFileControls.classList.add('hidden');
             if (unsavedAlert) unsavedAlert.classList.add('hidden');
-
+            // ステータス表示をクラウド同期中に変更
+            if (syncStatusText) {
+                syncStatusText.textContent = "クラウド同期中";
+                syncStatusText.className = "text-[10px] text-emerald-400 font-medium"; // 色を少し目立たせても綺麗です
+            }
             showToast('クラウドデータベースと接続しました（自動保存中）。');
         } else {
             // ② 未ログイン（ローカル運用）の場合
@@ -41,7 +46,12 @@ window.addEventListener('DOMContentLoaded', async () => {
             
             // ローカル運用のときだけ手動のファイル操作エリアを表示する
             if (localFileControls) localFileControls.classList.remove('hidden');
-
+            
+            // ステータス表示をローカルファイルモードに変更
+            if (syncStatusText) {
+                syncStatusText.textContent = "ローカルファイルモード";
+                syncStatusText.className = "text-[10px] text-slate-400";
+            }
             showToast('ローカルファイルモードで動作しています。');
         }
         // 認証状態の変化やデータロードに合わせて年度プルダウンを更新
