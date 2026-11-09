@@ -10,18 +10,16 @@ let ledgerCache = {
     endDate: '',
     min: '',
     max: '',
-    sort: 'date-desc'
+    sort: 'date-asc'
 };
 
 export async function initLedger() {
     const container = document.getElementById('tab-ledger');
     if (!container) return;
     
-    // HTMLがまだ読み込まれていない場合のみfetchする
     if (!container.innerHTML.trim() || !document.getElementById('ledger-type-select')) {
         await renderLedgerHtml();
     } else {
-        // 既にHTMLが存在する場合はキャッシュをDOMに反映して再描画
         restoreCacheToDOM();
         renderLedger();
     }
@@ -93,7 +91,6 @@ function setupEventListeners() {
     safeAddEvent('btn-clear-ledger-filter', 'click', clearLedgerFilters);
 }
 
-// キャッシュされた状態をDOM（入力欄など）に復元する
 function restoreCacheToDOM() {
     const typeEl = document.getElementById('ledger-type-select');
     const startEl = document.getElementById('filter-ledger-start');
@@ -114,7 +111,6 @@ function restoreCacheToDOM() {
     updateAccountDropdown(ledgerCache.account, ledgerCache.sub);
 }
 
-// 勘定科目ドロップダウンの構築（選択状態を維持）
 function updateAccountDropdown(targetAccount = null, targetSub = null) {
     const typeSelect = document.getElementById('ledger-type-select');
     const accSelect = document.getElementById('ledger-account-select');
@@ -145,7 +141,6 @@ function updateAccountDropdown(targetAccount = null, targetSub = null) {
     updateSubDropdown(targetSub);
 }
 
-// 補助科目ドロップダウンの構築（選択状態を維持）
 function updateSubDropdown(targetSub = null) {
     const accNameElem = document.getElementById('ledger-account-select');
     const subSelect = document.getElementById('ledger-sub-select');
@@ -187,14 +182,13 @@ export function renderLedgerAccountDropdown() {
     updateAccountDropdown();
 }
 
-// フィルター条件をすべてリセットする関数（クリアボタン用）
 function clearLedgerFilters() {
     ledgerCache.keyword = '';
     ledgerCache.startDate = '';
     ledgerCache.endDate = '';
     ledgerCache.min = '';
     ledgerCache.max = '';
-    ledgerCache.sort = 'date-desc';
+    ledgerCache.sort = 'date-asc';
     ledgerCache.sub = 'ALL';
 
     const startEl = document.getElementById('filter-ledger-start');
@@ -210,7 +204,7 @@ function clearLedgerFilters() {
     if (minEl) minEl.value = '';
     if (maxEl) maxEl.value = '';
     if (keywordEl) keywordEl.value = '';
-    if (sortEl) sortEl.value = 'date-desc';
+    if (sortEl) sortEl.value = 'date-asc';
     if (subSelect) subSelect.value = 'ALL';
 
     renderLedger();
@@ -232,7 +226,7 @@ export function renderLedger() {
     const state = store.getState();
     
     // 1. 勘定科目および補助科目の基本フィルタリング
-    let matchedTxs = state.transactions.filter(t => {
+    let baseTxs = state.transactions.filter(t => {
         let matchDebit = (t.debit.acc === accName);
         let matchCredit = (t.credit.acc === accName);
 
@@ -246,7 +240,47 @@ export function renderLedger() {
         return matchDebit || matchCredit;
     });
 
-    // 2. 各種フィルター値の取得（DOMまたはキャッシュから）
+    // 2. 日付昇順ベースで全ての取引の正しいランニングバランス（残高）をあらかじめ計算しておく
+    let sortedForBalance = [...baseTxs].sort((a, b) => {
+        return a.date.localeCompare(b.date) || state.transactions.indexOf(a) - state.transactions.indexOf(b);
+    });
+
+    let normalSide = (catType === 'liabilities' || catType === 'netAssets' || catType === 'income') ? 'credit' : 'debit';
+    let runningBalance = 0;
+    if (catType !== 'income' && catType !== 'expenses') {
+        const catObj = state.categories[catType]?.find(c => c.name === accName);
+        if (catObj) {
+            if (subMode !== 'ALL' && subMode !== 'NONE' && Array.isArray(catObj.sub)) {
+                const subObj = catObj.sub.find(s => (typeof s === 'string' ? s : s.name) === subMode);
+                runningBalance = (subObj && typeof subObj === 'object') ? (subObj.balance || 0) : 0;
+            } else if (Array.isArray(catObj.sub) && catObj.sub.length > 0) {
+                catObj.sub.forEach(s => {
+                    if (typeof s === 'object' && s !== null) runningBalance += (s.balance || 0);
+                });
+            } else {
+                runningBalance = catObj.balance || 0;
+            }
+        }
+    }
+
+    const balanceMap = new Map();
+    sortedForBalance.forEach(t => {
+        let isDebit = (t.debit.acc === accName);
+        let isCredit = (t.credit.acc === accName);
+        const amt = Number(t.amount);
+        
+        if (normalSide === 'debit') {
+            if (isDebit) runningBalance += amt;
+            if (isCredit) runningBalance -= amt;
+        } else {
+            if (isCredit) runningBalance += amt;
+            if (isDebit) runningBalance -= amt;
+        }
+        balanceMap.set(t.id, runningBalance);
+    });
+
+    // 3. 各種フィルター（期間、金額、キーワード）の適用
+    let matchedTxs = [...baseTxs];
     const startDate = ledgerCache.startDate;
     const endDate = ledgerCache.endDate;
     const minVal = ledgerCache.min;
@@ -254,7 +288,6 @@ export function renderLedger() {
     const keyword = ledgerCache.keyword.trim().toLowerCase();
     const sortOrder = ledgerCache.sort;
 
-    // 日付範囲フィルターの適用
     if (startDate) {
         matchedTxs = matchedTxs.filter(t => t.date >= startDate);
     }
@@ -262,7 +295,6 @@ export function renderLedger() {
         matchedTxs = matchedTxs.filter(t => t.date <= endDate);
     }
 
-    // 金額範囲フィルターの適用
     const minAmt = minVal !== '' ? Number(minVal) : null;
     const maxAmt = maxVal !== '' ? Number(maxVal) : null;
     if (minAmt !== null) {
@@ -272,7 +304,6 @@ export function renderLedger() {
         matchedTxs = matchedTxs.filter(t => Number(t.amount) <= maxAmt);
     }
 
-    // キーワードフィルターの適用
     if (keyword) {
         matchedTxs = matchedTxs.filter(t => {
             const memo = (t.memo || '').toLowerCase();
@@ -293,17 +324,17 @@ export function renderLedger() {
         });
     }
 
-    // 3. 表示順（ソート）の適用
+    // 4. 表示順（ソート）の適用
     if (sortOrder) {
         matchedTxs.sort((a, b) => {
             if (sortOrder === 'date-desc') {
-                return b.date.localeCompare(a.date) || b.id.localeCompare(a.id);
+                return b.date.localeCompare(a.date) || state.transactions.indexOf(b) - state.transactions.indexOf(a);
             } else if (sortOrder === 'date-asc') {
-                return a.date.localeCompare(b.date) || a.id.localeCompare(b.id);
-            } else if (sortOrder === 'amount-desc') {
-                return Number(b.amount) - Number(a.amount);
-            } else if (sortOrder === 'amount-asc') {
-                return Number(a.amount) - Number(b.amount);
+                return a.date.localeCompare(b.date) || state.transactions.indexOf(a) - state.transactions.indexOf(b);
+            } else if (sortOrder === 'created-desc') {
+                return state.transactions.indexOf(b) - state.transactions.indexOf(a);
+            } else if (sortOrder === 'created-asc') {
+                return state.transactions.indexOf(a) - state.transactions.indexOf(b);
             }
             return 0;
         });
@@ -314,43 +345,15 @@ export function renderLedger() {
         return;
     }
 
-    // 4. 残高表示の判定（日付範囲以外のフィルター使用時は残高非表示）
-    const hasOtherFilter = (minVal !== '' || maxVal !== '' || keyword !== '');
-
-    let normalSide = (catType === 'liabilities' || catType === 'netAssets' || catType === 'income') ? 'credit' : 'debit';
-
-    let baseBal = 0;
-    if (!hasOtherFilter && catType !== 'income' && catType !== 'expenses') {
-        const catObj = state.categories[catType]?.find(c => c.name === accName);
-        if (catObj) {
-            if (subMode !== 'ALL' && subMode !== 'NONE' && Array.isArray(catObj.sub)) {
-                const subObj = catObj.sub.find(s => (typeof s === 'string' ? s : s.name) === subMode);
-                baseBal = (subObj && typeof subObj === 'object') ? (subObj.balance || 0) : 0;
-            } else if (Array.isArray(catObj.sub) && catObj.sub.length > 0) {
-                catObj.sub.forEach(s => {
-                    if (typeof s === 'object' && s !== null) baseBal += (s.balance || 0);
-                });
-            } else {
-                baseBal = catObj.balance || 0;
-            }
-        }
-    }
-    let runningBalance = baseBal;
+    // 5. 残高表示の判定
+    // 「入力順（昇順・降順）」選択時、または「金額範囲やキーワードなどの他フィルター」使用時は残高非表示
+    const hasOtherFilter = (minVal !== '' || maxVal !== '' || keyword !== '' || sortOrder === 'created-asc' || sortOrder === 'created-desc');
 
     matchedTxs.forEach(t => {
         let isDebit = (t.debit.acc === accName);
         let isCredit = (t.credit.acc === accName);
         const amt = Number(t.amount);
-        
-        if (!hasOtherFilter) {
-            if (normalSide === 'debit') {
-                if (isDebit) runningBalance += amt;
-                if (isCredit) runningBalance -= amt;
-            } else {
-                if (isCredit) runningBalance += amt;
-                if (isDebit) runningBalance -= amt;
-            }
-        }
+        const rowBalance = balanceMap.get(t.id) ?? 0;
 
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50";
@@ -359,7 +362,7 @@ export function renderLedger() {
             <td class="p-2 font-medium">${isDebit ? t.credit.acc + (t.credit.sub ? ' ('+t.credit.sub+')' : '') : t.debit.acc + (t.debit.sub ? ' ('+t.debit.sub+')' : '')} <span class="text-slate-400 text-[10px]">(${t.memo || '-'})</span></td>
             <td class="p-2 text-right font-semibold text-emerald-700">${isDebit ? '¥' + amt.toLocaleString() : '-'}</td>
             <td class="p-2 text-right font-semibold text-rose-700">${isCredit ? '¥' + amt.toLocaleString() : '-'}</td>
-            <td class="p-2 text-right font-bold text-slate-900">${hasOtherFilter ? '-' : '¥' + runningBalance.toLocaleString()}</td>
+            <td class="p-2 text-right font-bold text-slate-900">${hasOtherFilter ? '-' : '¥' + rowBalance.toLocaleString()}</td>
             <td class="p-2 text-center no-print whitespace-nowrap">
                 <div class="flex items-center justify-center gap-1">
                     <button onclick="window.openTxEditModal('${t.id}')" class="text-blue-600 hover:text-blue-800 p-1" title="編集"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
