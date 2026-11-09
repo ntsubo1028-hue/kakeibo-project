@@ -1,27 +1,30 @@
 import { store } from '../store.js';
 
+// フィルター条件や選択状態を保持するキャッシュ
+let ledgerCache = {
+    type: 'assets',
+    account: '',
+    sub: 'ALL',
+    keyword: '',
+    startDate: '',
+    endDate: '',
+    min: '',
+    max: '',
+    sort: 'date-desc'
+};
+
 export async function initLedger() {
-    await renderLedgerHtml();
-
-    const safeAddEvent = (id, event, handler) => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener(event, handler);
-    };
-
-    safeAddEvent('ledger-type-select', 'change', onLedgerTypeChange);
-    safeAddEvent('ledger-account-select', 'change', onLedgerAccountChange);
-    safeAddEvent('ledger-sub-select', 'change', renderLedger);
+    const container = document.getElementById('tab-ledger');
+    if (!container) return;
     
-    // 各種フィルター・ソートのイベントリスナー
-    safeAddEvent('filter-ledger-start', 'change', renderLedger);
-    safeAddEvent('filter-ledger-end', 'change', renderLedger);
-    safeAddEvent('filter-ledger-min', 'input', renderLedger);
-    safeAddEvent('filter-ledger-max', 'input', renderLedger);
-    safeAddEvent('filter-ledger-keyword', 'input', renderLedger);
-    safeAddEvent('sort-ledger-order', 'change', renderLedger);
-
-    // 条件クリアボタンのイベントリスナー
-    safeAddEvent('btn-clear-ledger-filter', 'click', clearLedgerFilters);
+    // HTMLがまだ読み込まれていない場合のみfetchする
+    if (!container.innerHTML.trim() || !document.getElementById('ledger-type-select')) {
+        await renderLedgerHtml();
+    } else {
+        // 既にHTMLが存在する場合はキャッシュをDOMに反映して再描画
+        restoreCacheToDOM();
+        renderLedger();
+    }
 }
 
 async function renderLedgerHtml() {
@@ -35,14 +38,90 @@ async function renderLedgerHtml() {
         if (window.lucide) lucide.createIcons();
     } catch (e) {
         console.error(e);
+        return;
     }
+
+    setupEventListeners();
+    restoreCacheToDOM();
     renderLedgerAccountDropdown();
 }
 
-function onLedgerTypeChange() {
-    const catType = document.getElementById('ledger-type-select')?.value;
+function setupEventListeners() {
+    const safeAddEvent = (id, event, handler) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(event, handler);
+    };
+
+    safeAddEvent('ledger-type-select', 'change', (e) => {
+        ledgerCache.type = e.target.value;
+        onLedgerTypeChange();
+    });
+    safeAddEvent('ledger-account-select', 'change', (e) => {
+        ledgerCache.account = e.target.value;
+        onLedgerAccountChange();
+    });
+    safeAddEvent('ledger-sub-select', 'change', (e) => {
+        ledgerCache.sub = e.target.value;
+        renderLedger();
+    });
+    
+    safeAddEvent('filter-ledger-start', 'change', (e) => {
+        ledgerCache.startDate = e.target.value;
+        renderLedger();
+    });
+    safeAddEvent('filter-ledger-end', 'change', (e) => {
+        ledgerCache.endDate = e.target.value;
+        renderLedger();
+    });
+    safeAddEvent('filter-ledger-min', 'input', (e) => {
+        ledgerCache.min = e.target.value;
+        renderLedger();
+    });
+    safeAddEvent('filter-ledger-max', 'input', (e) => {
+        ledgerCache.max = e.target.value;
+        renderLedger();
+    });
+    safeAddEvent('filter-ledger-keyword', 'input', (e) => {
+        ledgerCache.keyword = e.target.value;
+        renderLedger();
+    });
+    safeAddEvent('sort-ledger-order', 'change', (e) => {
+        ledgerCache.sort = e.target.value;
+        renderLedger();
+    });
+
+    safeAddEvent('btn-clear-ledger-filter', 'click', clearLedgerFilters);
+}
+
+// キャッシュされた状態をDOM（入力欄など）に復元する
+function restoreCacheToDOM() {
+    const typeEl = document.getElementById('ledger-type-select');
+    const startEl = document.getElementById('filter-ledger-start');
+    const endEl = document.getElementById('filter-ledger-end');
+    const minEl = document.getElementById('filter-ledger-min');
+    const maxEl = document.getElementById('filter-ledger-max');
+    const keywordEl = document.getElementById('filter-ledger-keyword');
+    const sortEl = document.getElementById('sort-ledger-order');
+
+    if (typeEl && ledgerCache.type) typeEl.value = ledgerCache.type;
+    if (startEl) startEl.value = ledgerCache.startDate;
+    if (endEl) endEl.value = ledgerCache.endDate;
+    if (minEl) minEl.value = ledgerCache.min;
+    if (maxEl) maxEl.value = ledgerCache.max;
+    if (keywordEl) keywordEl.value = ledgerCache.keyword;
+    if (sortEl && ledgerCache.sort) sortEl.value = ledgerCache.sort;
+
+    updateAccountDropdown(ledgerCache.account, ledgerCache.sub);
+}
+
+// 勘定科目ドロップダウンの構築（選択状態を維持）
+function updateAccountDropdown(targetAccount = null, targetSub = null) {
+    const typeSelect = document.getElementById('ledger-type-select');
     const accSelect = document.getElementById('ledger-account-select');
-    if (!accSelect || !catType) return;
+    if (!typeSelect || !accSelect) return;
+
+    const catType = typeSelect.value;
+    ledgerCache.type = catType;
     accSelect.innerHTML = '';
 
     const state = store.getState();
@@ -52,21 +131,28 @@ function onLedgerTypeChange() {
     });
 
     if (list.length > 0) {
-        accSelect.value = list[0].name;
+        const selectName = targetAccount || ledgerCache.account;
+        if (selectName && list.some(c => c.name === selectName)) {
+            accSelect.value = selectName;
+        } else {
+            accSelect.value = list[0].name;
+        }
+        ledgerCache.account = accSelect.value;
+    } else {
+        ledgerCache.account = '';
     }
-    onLedgerAccountChange();
+
+    updateSubDropdown(targetSub);
 }
 
-export function renderLedgerAccountDropdown() {
-    onLedgerTypeChange();
-}
-
-function onLedgerAccountChange() {
+// 補助科目ドロップダウンの構築（選択状態を維持）
+function updateSubDropdown(targetSub = null) {
     const accNameElem = document.getElementById('ledger-account-select');
-    if (!accNameElem) return;
-    const accName = accNameElem.value;
     const subSelect = document.getElementById('ledger-sub-select');
-    if (!subSelect) return;
+    if (!accNameElem || !subSelect) return;
+
+    const accName = accNameElem.value;
+    ledgerCache.account = accName;
     subSelect.innerHTML = '';
     
     subSelect.appendChild(new Option('(すべての補助)', 'ALL'));
@@ -77,11 +163,40 @@ function onLedgerAccountChange() {
             subSelect.appendChild(new Option(s, s));
         });
     }
+
+    const selectSub = targetSub || ledgerCache.sub;
+    if (selectSub && Array.from(subSelect.options).some(opt => opt.value === selectSub)) {
+        subSelect.value = selectSub;
+    } else {
+        subSelect.value = 'ALL';
+    }
+    ledgerCache.sub = subSelect.value;
+}
+
+function onLedgerTypeChange() {
+    updateAccountDropdown();
     renderLedger();
 }
 
-// フィルター条件をすべてリセットする関数
+function onLedgerAccountChange() {
+    updateSubDropdown();
+    renderLedger();
+}
+
+export function renderLedgerAccountDropdown() {
+    updateAccountDropdown();
+}
+
+// フィルター条件をすべてリセットする関数（クリアボタン用）
 function clearLedgerFilters() {
+    ledgerCache.keyword = '';
+    ledgerCache.startDate = '';
+    ledgerCache.endDate = '';
+    ledgerCache.min = '';
+    ledgerCache.max = '';
+    ledgerCache.sort = 'date-desc';
+    ledgerCache.sub = 'ALL';
+
     const startEl = document.getElementById('filter-ledger-start');
     const endEl = document.getElementById('filter-ledger-end');
     const minEl = document.getElementById('filter-ledger-min');
@@ -98,7 +213,6 @@ function clearLedgerFilters() {
     if (sortEl) sortEl.value = 'date-desc';
     if (subSelect) subSelect.value = 'ALL';
 
-    // 再描画を実行
     renderLedger();
 }
 
@@ -132,13 +246,13 @@ export function renderLedger() {
         return matchDebit || matchCredit;
     });
 
-    // 2. 各種フィルター値の取得
-    const startDate = document.getElementById('filter-ledger-start')?.value;
-    const endDate = document.getElementById('filter-ledger-end')?.value;
-    const minVal = document.getElementById('filter-ledger-min')?.value;
-    const maxVal = document.getElementById('filter-ledger-max')?.value;
-    const keyword = document.getElementById('filter-ledger-keyword')?.value?.trim()?.toLowerCase() || '';
-    const sortOrder = document.getElementById('sort-ledger-order')?.value;
+    // 2. 各種フィルター値の取得（DOMまたはキャッシュから）
+    const startDate = ledgerCache.startDate;
+    const endDate = ledgerCache.endDate;
+    const minVal = ledgerCache.min;
+    const maxVal = ledgerCache.max;
+    const keyword = ledgerCache.keyword.trim().toLowerCase();
+    const sortOrder = ledgerCache.sort;
 
     // 日付範囲フィルターの適用
     if (startDate) {
@@ -185,7 +299,7 @@ export function renderLedger() {
             if (sortOrder === 'date-desc') {
                 return b.date.localeCompare(a.date) || b.id.localeCompare(a.id);
             } else if (sortOrder === 'date-asc') {
-                return a.date.localeCompare(b.date) || b.id.localeCompare(b.id);
+                return a.date.localeCompare(b.date) || a.id.localeCompare(b.id);
             } else if (sortOrder === 'amount-desc') {
                 return Number(b.amount) - Number(a.amount);
             } else if (sortOrder === 'amount-asc') {
@@ -200,8 +314,7 @@ export function renderLedger() {
         return;
     }
 
-    // 4. 残高表示の判定
-    // 「日付範囲以外のフィルター（金額範囲やキーワードなど）」が使われている場合は残高を表示しない仕様
+    // 4. 残高表示の判定（日付範囲以外のフィルター使用時は残高非表示）
     const hasOtherFilter = (minVal !== '' || maxVal !== '' || keyword !== '');
 
     let normalSide = (catType === 'liabilities' || catType === 'netAssets' || catType === 'income') ? 'credit' : 'debit';
