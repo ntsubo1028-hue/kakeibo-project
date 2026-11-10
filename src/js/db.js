@@ -134,8 +134,7 @@ function migrateCategories(categories) {
     return categories;
 }
 
-
-// --- 任意の仕訳データ配列をCSV出力する汎用関数（ジャーナル画面等でも流用可能） ---
+// --- 任意の仕訳データ配列をCSV出力する汎用関数 ---
 export function exportJournalCsv(txList, fileName = 'journal_export.csv') {
     if (!txList || txList.length === 0) {
         alert('出力対象の仕訳データがありません。');
@@ -145,7 +144,6 @@ export function exportJournalCsv(txList, fileName = 'journal_export.csv') {
     showToast(`${txList.length}件の仕訳データをCSV出力しました。`);
 }
 
-// 既存の全件出力も汎用関数を利用するようにラップ
 export function exportAllJournalCsv() {
     const state = store.getState();
     if (!state.transactions || state.transactions.length === 0) {
@@ -189,12 +187,11 @@ export function handleCsvImport(e) {
         parseAndImportCsv(text);
     };
     reader.readAsText(file, 'UTF-8');
-    e.target.value = ''; // 連続で同じファイルを読み込めるようにリセット
+    e.target.value = ''; 
 }
 
 function parseAndImportCsv(csvText) {
     try {
-        // 改行コードの正規化とBOMの除去
         const cleanText = csvText.replace(/^\uFEFF/, '');
         const lines = cleanText.split(/\r\n|\n/).filter(line => line.trim() !== '');
         
@@ -203,7 +200,6 @@ function parseAndImportCsv(csvText) {
             return;
         }
 
-        // CSVのパース（ダブルクォーテーションやカンマ区切りの簡易解析）
         const parseCsvLine = (line) => {
             const result = [];
             let current = '';
@@ -224,14 +220,59 @@ function parseAndImportCsv(csvText) {
             return result.map(s => s.replace(/^"|"$/g, ''));
         };
 
-        // ヘッダー行をスキップしてデータ行を処理
+        const state = store.getState();
+        const fiscalYear = Number(state.fiscalYear) || new Date().getFullYear();
+        // 会計年度の期間判定（1月1日〜12月31日、または必要に応じた判定。ここでは当年度のYYYY-01-01からYYYY-12-31を対象とします）
+        const yearStart = `${fiscalYear}-01-01`;
+        const yearEnd = `${fiscalYear}-12-31`;
+
+        // 登録されている全勘定科目・補助科目のリストを取得
+        const validAccounts = store.getAllAccountNames(); // 登録されている全勘定科目名の配列
+        
+        const errors = [];
         const newTxs = [];
+
         for (let i = 1; i < lines.length; i++) {
+            const lineNum = i + 1; // 1行目がヘッダーなのでデータは2行目〜
             const cols = parseCsvLine(lines[i]);
-            if (cols.length < 6) continue;
+            if (cols.length < 6) {
+                errors.push(`${lineNum}行目: カラム数が不足しています。`);
+                continue;
+            }
 
             const [date, debitAcc, debitSub, creditAcc, creditSub, amount, memo] = cols;
-            if (!date || !debitAcc || !creditAcc || !amount) continue;
+            if (!date || !debitAcc || !creditAcc || !amount) {
+                errors.push(`${lineNum}行目: 必須項目（日付、借方科目、貸方科目、金額）が空です。`);
+                continue;
+            }
+
+            // ① 期間外チェック (当年度外のデータ)
+            if (date < yearStart || date > yearEnd) {
+                errors.push(`${lineNum}行目: 日付 "${date}" が現在の会計年度(${fiscalYear}年度)の期間外です。`);
+            }
+
+            // ② 勘定科目・補助科目の存在チェック
+            // 借方科目チェック
+            if (!validAccounts.includes(debitAcc)) {
+                errors.push(`${lineNum}行目: 借方科目 "${debitAcc}" は登録されていません。`);
+            } else if (debitSub) {
+                // 補助科目チェック
+                const validSubs = store.getSubAccounts(debitAcc);
+                if (!validSubs.includes(debitSub)) {
+                    errors.push(`${lineNum}行目: 借方科目 "${debitAcc}" に対する補助科目 "${debitSub}" は登録されていません。`);
+                }
+            }
+
+            // 貸方科目チェック
+            if (!validAccounts.includes(creditAcc)) {
+                errors.push(`${lineNum}行目: 貸方科目 "${creditAcc}" は登録されていません。`);
+            } else if (creditSub) {
+                // 補助科目チェック
+                const validSubs = store.getSubAccounts(creditAcc);
+                if (!validSubs.includes(creditSub)) {
+                    errors.push(`${lineNum}行目: 貸方科目 "${creditAcc}" に対する補助科目 "${creditSub}" は登録されていません。`);
+                }
+            }
 
             newTxs.push({
                 id: (Date.now() + i).toString(),
@@ -243,12 +284,18 @@ function parseAndImportCsv(csvText) {
             });
         }
 
+        // エラーが存在する場合はインポートを完全に中止し、詳細をアラートで通知
+        if (errors.length > 0) {
+            const errorMsg = `CSVファイルのインポートに失敗しました。以下のエラーを確認してください。\n\n` + errors.join('\n');
+            alert(errorMsg);
+            return;
+        }
+
         if (newTxs.length === 0) {
             alert('インポートできる有効な仕訳データが見つかりませんでした。');
             return;
         }
 
-        const state = store.getState();
         // 既存の先頭または末尾に追加
         state.transactions = [...newTxs, ...state.transactions];
         store.setState(state);
