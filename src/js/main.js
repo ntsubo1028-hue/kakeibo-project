@@ -16,7 +16,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         const loginBtn = document.getElementById('btn-google-login');
         const profileArea = document.getElementById('user-profile-area');
         const emailDisplay = document.getElementById('user-email-display');
-        const localFileControls = document.getElementById('local-file-controls');
+        const localFileOnlyControls = document.getElementById('local-file-only-controls');
         const unsavedAlert = document.getElementById('unsaved-alert');
         const syncStatusText = document.getElementById('sync-status-text'); // ステータス表示要素
 
@@ -30,7 +30,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             if (emailDisplay) emailDisplay.textContent = user.email;
             
             // クラウド同期中は手動のファイル操作エリアおよび未保存アラートを非表示にする
-            if (localFileControls) localFileControls.classList.add('hidden');
+            if (localFileOnlyControls) localFileOnlyControls.classList.add('hidden');
             if (unsavedAlert) unsavedAlert.classList.add('hidden');
             // ステータス表示をクラウド同期中に変更
             if (syncStatusText) {
@@ -45,7 +45,10 @@ window.addEventListener('DOMContentLoaded', async () => {
             if (emailDisplay) emailDisplay.textContent = '';
             
             // ローカル運用のときだけ手動のファイル操作エリアを表示する
-            if (localFileControls) localFileControls.classList.remove('hidden');
+            if (localFileOnlyControls) localFileOnlyControls.classList.remove('hidden');
+            
+            // ▼▼▼【ここに追加】ローカルファイルモード時も起動時は警告を隠す ▼▼▼
+            if (unsavedAlert) unsavedAlert.classList.add('hidden');
             
             // ステータス表示をローカルファイルモードに変更
             if (syncStatusText) {

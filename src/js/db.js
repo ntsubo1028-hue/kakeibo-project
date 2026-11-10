@@ -134,15 +134,25 @@ function migrateCategories(categories) {
     return categories;
 }
 
-// CSVエクスポート・インポート関連関数もここに集約
+
+// --- 任意の仕訳データ配列をCSV出力する汎用関数（ジャーナル画面等でも流用可能） ---
+export function exportJournalCsv(txList, fileName = 'journal_export.csv') {
+    if (!txList || txList.length === 0) {
+        alert('出力対象の仕訳データがありません。');
+        return;
+    }
+    downloadCsvFile(generateCsvString(txList), fileName);
+    showToast(`${txList.length}件の仕訳データをCSV出力しました。`);
+}
+
+// 既存の全件出力も汎用関数を利用するようにラップ
 export function exportAllJournalCsv() {
     const state = store.getState();
     if (!state.transactions || state.transactions.length === 0) {
         alert('出力するデータがありません。');
         return;
     }
-    downloadCsvFile(generateCsvString(state.transactions), `journal_all_${state.fiscalYear}.csv`);
-    showToast('全仕訳をCSV出力しました。');
+    exportJournalCsv(state.transactions, `journal_all_${state.fiscalYear}.csv`);
 }
 
 function generateCsvString(txList) {

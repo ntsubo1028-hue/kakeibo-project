@@ -1,4 +1,8 @@
 import { store } from '../store.js';
+import { exportJournalCsv } from '../db.js';
+
+// 現在画面に表示されている絞り込み済みの仕訳データを保持
+let currentMatchedTransactions = [];
 
 export async function initJournal() {
     await renderJournalHtml();
@@ -17,6 +21,13 @@ export async function initJournal() {
         const sortEl = document.getElementById('filter-sort');
         if (sortEl) sortEl.value = 'date-desc';
         renderJournalTable();
+    });
+
+    // ジャーナル画面のCSV出力ボタンのイベント紐付け
+    document.getElementById('btn-export-journal-csv')?.addEventListener('click', () => {
+        const state = store.getState();
+        const fileName = `journal_filtered_${state.fiscalYear}.csv`;
+        exportJournalCsv(currentMatchedTransactions, fileName);
     });
 }
 
@@ -66,6 +77,9 @@ export function renderJournalTable() {
         if (sortOrder === 'input-asc') return Number(a.id) - Number(b.id);
         return 0;
     });
+
+    // 絞り込み結果をキャッシュに格納（CSV出力用）
+    currentMatchedTransactions = txs;
 
     if (countLabel) {
         countLabel.textContent = `該当件数: ${txs.length} 件 (全 ${(state.transactions || []).length} 件)`;

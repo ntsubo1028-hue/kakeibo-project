@@ -1,4 +1,5 @@
 import { store } from '../store.js';
+import { exportJournalCsv } from '../db.js'; // db.jsから汎用関数をインポート
 
 // フィルター条件や選択状態を保持するキャッシュ
 let ledgerCache = {
@@ -12,6 +13,9 @@ let ledgerCache = {
     max: '',
     sort: 'date-asc'
 };
+
+// 現在画面に表示（絞り込み）されている仕訳データのキャッシュ
+let currentMatchedTransactions = [];
 
 export async function initLedger() {
     const container = document.getElementById('tab-ledger');
@@ -89,6 +93,14 @@ function setupEventListeners() {
     });
 
     safeAddEvent('btn-clear-ledger-filter', 'click', clearLedgerFilters);
+
+    // 総勘定元帳の表示中データCSV出力ボタンのイベント紐付け
+    safeAddEvent('btn-export-ledger-csv', 'click', () => {
+        const state = store.getState();
+        const accName = ledgerCache.account || 'ledger';
+        const fileName = `ledger_${accName}_${state.fiscalYear}.csv`;
+        exportJournalCsv(currentMatchedTransactions, fileName);
+    });
 }
 
 function restoreCacheToDOM() {
@@ -324,7 +336,7 @@ export function renderLedger() {
         });
     }
 
-    // 4. 表示順（ソート）の適用（入力昇順・降順の引き算の向きを修正）
+    // 4. 表示順（ソート）の適用
     if (sortOrder) {
         matchedTxs.sort((a, b) => {
             if (sortOrder === 'date-desc') {
@@ -332,15 +344,16 @@ export function renderLedger() {
             } else if (sortOrder === 'date-asc') {
                 return a.date.localeCompare(b.date) || state.transactions.indexOf(a) - state.transactions.indexOf(b);
             } else if (sortOrder === 'created-desc') {
-                // 入力降順（新しい順）：配列のインデックスが小さい（新着）ものを先頭に
                 return state.transactions.indexOf(a) - state.transactions.indexOf(b);
             } else if (sortOrder === 'created-asc') {
-                // 入力昇順（古い順）：配列のインデックスが大きい（古い）ものを先頭に
                 return state.transactions.indexOf(b) - state.transactions.indexOf(a);
             }
             return 0;
         });
     }
+
+    // フィルタリング・ソート済みの配列をキャッシュ（CSV出力用）
+    currentMatchedTransactions = matchedTxs;
 
     if (matchedTxs.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-xs text-slate-400">条件に一致する仕訳データはありません。</td></tr>`;

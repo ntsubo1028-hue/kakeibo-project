@@ -1,12 +1,12 @@
-<div class="kakeibo-card space-y-2.5">
+<div class="kakeibo-card space-y-3">
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-        <h2 class="kakeibo-card-title">
+        <h2 class="kakeibo-card-title flex items-center gap-1.5">
             <i data-lucide="book-open" class="w-4 h-4 text-indigo-600"></i> 総勘定元帳 (科目別明細)
         </h2>
         
-        <div class="flex flex-wrap items-center gap-1.5 text-xs">
-            <div>
-                <span class="text-slate-500 mr-1">区分:</span>
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+            <div class="flex items-center gap-1">
+                <span class="text-slate-500">区分:</span>
                 <select id="ledger-type-select" class="kakeibo-select bg-slate-50 font-semibold w-auto">
                     <option value="assets">資産</option>
                     <option value="liabilities">負債</option>
@@ -15,12 +15,12 @@
                     <option value="expenses">費用</option>
                 </select>
             </div>
-            <div>
-                <span class="text-slate-500 mr-1">勘定科目:</span>
+            <div class="flex items-center gap-1">
+                <span class="text-slate-500">勘定科目:</span>
                 <select id="ledger-account-select" class="kakeibo-select font-semibold w-auto"></select>
             </div>
-            <div>
-                <span class="text-slate-500 mr-1">補助科目:</span>
+            <div class="flex items-center gap-1">
+                <span class="text-slate-500">補助科目:</span>
                 <select id="ledger-sub-select" class="kakeibo-select font-semibold w-auto">
                     <option value="ALL">(すべての補助)</option>
                     <option value="NONE">(補助科目なし)</option>
@@ -30,30 +30,30 @@
     </div>
 
     <!-- フィルター＆コントロールバー -->
-    <div class="kakeibo-filter-box flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div class="flex flex-wrap items-center gap-1.5">
+    <div class="kakeibo-filter-box bg-slate-50/70 p-3 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex flex-wrap items-center gap-2 flex-1">
             <!-- キーワード検索 -->
             <div>
-                <input type="text" id="filter-ledger-keyword" placeholder="キーワード検索" class="kakeibo-input w-36">
+                <input type="text" id="filter-ledger-keyword" placeholder="キーワード検索" class="kakeibo-input w-32 sm:w-36">
             </div>
             <!-- 期間範囲 -->
-            <div class="flex items-center gap-1">
-                <span class="text-slate-500">期間:</span>
-                <input type="date" id="filter-ledger-start" class="kakeibo-input w-24">
-                <span>〜</span>
-                <input type="date" id="filter-ledger-end" class="kakeibo-input w-24">
+            <div class="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                <span class="text-slate-400 text-[11px]">期間:</span>
+                <input type="date" id="filter-ledger-start" class="kakeibo-input border-0 p-0 text-xs w-24 bg-transparent focus:ring-0">
+                <span class="text-slate-400">〜</span>
+                <input type="date" id="filter-ledger-end" class="kakeibo-input border-0 p-0 text-xs w-24 bg-transparent focus:ring-0">
             </div>
             <!-- 金額範囲 -->
-            <div class="flex items-center gap-1">
-                <span class="text-slate-500">金額:</span>
-                <input type="number" id="filter-ledger-min" placeholder="Min" class="kakeibo-input w-16">
-                <span>〜</span>
-                <input type="number" id="filter-ledger-max" placeholder="Max" class="kakeibo-input w-16">
+            <div class="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                <span class="text-slate-400 text-[11px]">金額:</span>
+                <input type="number" id="filter-ledger-min" placeholder="Min" class="kakeibo-input border-0 p-0 text-xs w-16 bg-transparent focus:ring-0">
+                <span class="text-slate-400">〜</span>
+                <input type="number" id="filter-ledger-max" placeholder="Max" class="kakeibo-input border-0 p-0 text-xs w-16 bg-transparent focus:ring-0">
             </div>
             <!-- 表示順 -->
             <div class="flex items-center gap-1">
                 <span class="text-slate-500">表示順:</span>
-                <select id="sort-ledger-order" class="kakeibo-select font-semibold w-auto">
+                <select id="sort-ledger-order" class="kakeibo-select font-semibold w-auto bg-white">
                     <option value="date-desc">日付降順 (新しい順)</option>
                     <option value="date-asc">日付昇順 (古い順)</option>
                     <option value="created-desc">入力降順 (新しい順)</option>
@@ -62,9 +62,12 @@
             </div>
         </div>
 
-        <!-- 条件クリアボタン -->
-        <div>
-            <button id="btn-clear-ledger-filter" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded text-xs flex items-center gap-1 transition" title="条件をクリア">
+        <!-- アクションボタン群（横並び固定） -->
+        <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+            <button type="button" id="btn-export-ledger-csv" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 transition shadow-2xs" title="表示中の元帳データをCSV出力">
+                <i data-lucide="file-down" class="w-3.5 h-3.5"></i> CSV出力
+            </button>
+            <button type="button" id="btn-clear-ledger-filter" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-lg text-xs flex items-center gap-1 transition" title="条件をクリア">
                 <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> クリア
             </button>
         </div>

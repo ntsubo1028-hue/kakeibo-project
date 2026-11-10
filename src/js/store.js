@@ -55,10 +55,7 @@ class Store {
             categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
             transactions: [],
             prevActuals: {},
-            templates: [
-                { id: 't1', name: '給与受取', category: 'A銀行', debitAcc: '普通預金', debitSub: '楽天銀行', creditAcc: '給与収入', creditSub: '給与', amount: 300000, memo: '給与振込' },
-                { id: 't2', name: '食費 (現金)', category: '共通', debitAcc: '食費', debitSub: '食料品', creditAcc: '現金', creditSub: '手元現金', amount: 5000, memo: 'スーパー買い出し' }
-            ]
+            templates: [] // ← 初期値を空にする（勝手なデフォルトを削除）
         };
         this.undoStack = [];
         this.redoStack = [];

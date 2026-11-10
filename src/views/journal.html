@@ -1,37 +1,45 @@
 <div class="kakeibo-card space-y-2.5 text-xs">
     <div class="flex justify-between items-center border-b pb-2">
-        <h2 class="kakeibo-card-title">
+        <h2 class="kakeibo-card-title flex items-center gap-1.5">
             <i data-lucide="list-todo" class="w-4 h-4 text-emerald-600"></i> 仕訳帳履歴一覧
         </h2>
         <div class="text-slate-500" id="journal-count-label">全 0 件</div>
     </div>
 
     <!-- 検索・フィルター・ソートエリア -->
-    <div class="kakeibo-filter-box space-y-2">
+    <div class="kakeibo-filter-box space-y-2 bg-slate-50/70 p-3 rounded-xl border border-slate-200">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <input type="text" id="filter-keyword" placeholder="キーワード (科目・摘要)..." class="kakeibo-input">
-            <div class="flex items-center gap-1">
-                <input type="date" id="filter-date-from" class="kakeibo-input">
+            <div class="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                <span class="text-slate-400 text-[11px]">期間:</span>
+                <input type="date" id="filter-date-from" class="kakeibo-input border-0 p-0 text-xs w-full bg-transparent focus:ring-0">
                 <span class="text-slate-400">～</span>
-                <input type="date" id="filter-date-to" class="kakeibo-input">
+                <input type="date" id="filter-date-to" class="kakeibo-input border-0 p-0 text-xs w-full bg-transparent focus:ring-0">
             </div>
-            <div class="flex items-center gap-1">
-                <input type="number" id="filter-amount-min" placeholder="下限金額" class="kakeibo-input">
+            <div class="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                <span class="text-slate-400 text-[11px]">金額:</span>
+                <input type="number" id="filter-amount-min" placeholder="下限金額" class="kakeibo-input border-0 p-0 text-xs w-full bg-transparent focus:ring-0">
                 <span class="text-slate-400">～</span>
-                <input type="number" id="filter-amount-max" placeholder="上限金額" class="kakeibo-input">
+                <input type="number" id="filter-amount-max" placeholder="上限金額" class="kakeibo-input border-0 p-0 text-xs w-full bg-transparent focus:ring-0">
             </div>
         </div>
-        <div class="flex justify-between items-center pt-1 border-t">
+        <div class="flex justify-between items-center pt-2 border-t border-slate-200">
             <div class="flex items-center gap-1.5">
                 <span class="font-semibold text-slate-600">並び順:</span>
-                <select id="filter-sort" class="kakeibo-select font-medium w-auto">
+                <select id="filter-sort" class="kakeibo-select font-medium w-auto bg-white">
                     <option value="date-desc" selected>日付の新しい順</option>
                     <option value="date-asc">日付の古い順</option>
                     <option value="input-desc">入力順 (新しい順)</option>
                     <option value="input-asc">入力順 (古い順)</option>
                 </select>
             </div>
-            <button type="button" id="btn-reset-filter" class="btn-secondary">条件クリア</button>
+            <!-- アクションボタン群（横並び） -->
+            <div class="flex items-center gap-1.5">
+                <button type="button" id="btn-export-journal-csv" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 transition shadow-2xs" title="表示中の仕訳データをCSV出力">
+                    <i data-lucide="file-down" class="w-3.5 h-3.5"></i> CSV出力
+                </button>
+                <button type="button" id="btn-reset-filter" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-lg text-xs transition">条件クリア</button>
+            </div>
         </div>
     </div>
 
