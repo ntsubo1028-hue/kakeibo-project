@@ -190,6 +190,36 @@ export function handleCsvImport(e) {
     e.target.value = ''; 
 }
 
+// 日付文字列をパースして "YYYY-MM-DD" 形式に正規化・検証するヘルパー
+function parseAndNormalizeDate(dateStr) {
+    if (!dateStr) return null;
+    // スラッシュやドットをハイフンに置換
+    const cleaned = String(dateStr).trim().replace(/[\/\.]/g, '-');
+    const parts = cleaned.split('-');
+    if (parts.length !== 3) return null;
+
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+
+    // 日付としての妥当性チェック（存在しない日付などを弾く）
+    const dateObj = new Date(year, month - 1, day);
+    if (
+        dateObj.getFullYear() !== year ||
+        dateObj.getMonth() !== month - 1 ||
+        dateObj.getDate() !== day
+    ) {
+        return null;
+    }
+
+    // 必ず 2桁の 0埋め形式 (YYYY-MM-DD) に変換
+    const mm = String(month).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    return `${year}-${mm}-${dd}`;
+}
+
 function parseAndImportCsv(csvText) {
     try {
         const cleanText = csvText.replace(/^\uFEFF/, '');
@@ -222,12 +252,11 @@ function parseAndImportCsv(csvText) {
 
         const state = store.getState();
         const fiscalYear = Number(state.fiscalYear) || new Date().getFullYear();
-        // 会計年度の期間判定（1月1日〜12月31日、または必要に応じた判定。ここでは当年度のYYYY-01-01からYYYY-12-31を対象とします）
         const yearStart = `${fiscalYear}-01-01`;
         const yearEnd = `${fiscalYear}-12-31`;
 
         // 登録されている全勘定科目・補助科目のリストを取得
-        const validAccounts = store.getAllAccountNames(); // 登録されている全勘定科目名の配列
+        const validAccounts = store.getAllAccountNames();
         
         const errors = [];
         const newTxs = [];
@@ -240,15 +269,22 @@ function parseAndImportCsv(csvText) {
                 continue;
             }
 
-            const [date, debitAcc, debitSub, creditAcc, creditSub, amount, memo] = cols;
-            if (!date || !debitAcc || !creditAcc || !amount) {
+            const [rawDate, debitAcc, debitSub, creditAcc, creditSub, amount, memo] = cols;
+            if (!rawDate || !debitAcc || !creditAcc || !amount) {
                 errors.push(`${lineNum}行目: 必須項目（日付、借方科目、貸方科目、金額）が空です。`);
                 continue;
             }
 
+            // 日付の正規化とバリデーション（2026/5/1や2026-5-1等を "2026-05-01" に綺麗に変換）
+            const normalizedDate = parseAndNormalizeDate(rawDate);
+            if (!normalizedDate) {
+                errors.push(`${lineNum}行目: 日付 "${rawDate}" の形式または値が不正です。`);
+                continue;
+            }
+
             // ① 期間外チェック (当年度外のデータ)
-            if (date < yearStart || date > yearEnd) {
-                errors.push(`${lineNum}行目: 日付 "${date}" が現在の会計年度(${fiscalYear}年度)の期間外です。`);
+            if (normalizedDate < yearStart || normalizedDate > yearEnd) {
+                errors.push(`${lineNum}行目: 日付 "${normalizedDate}" が現在の会計年度(${fiscalYear}年度)の期間外です。`);
             }
 
             // ② 勘定科目・補助科目の存在チェック
@@ -276,7 +312,7 @@ function parseAndImportCsv(csvText) {
 
             newTxs.push({
                 id: (Date.now() + i).toString(),
-                date: date,
+                date: normalizedDate, // 正規化された綺麗な日付を格納
                 debit: { acc: debitAcc, sub: debitSub || '' },
                 credit: { acc: creditAcc, sub: creditSub || '' },
                 amount: Number(amount) || 0,

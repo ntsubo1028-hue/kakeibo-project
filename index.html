@@ -8,7 +8,7 @@
     
     <!-- ★ アプリ全体のバージョン情報を定数として先頭で一元管理 -->
     <script>
-        const APP_VERSION = "v1.1.2";
+        const APP_VERSION = "v1.2.0";
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.app-version-badge').forEach(el => {
                 el.textContent = APP_VERSION;
@@ -18,6 +18,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; }
         .tab-content { display: none; }
@@ -135,6 +136,9 @@
                 <button data-tab="tab-statements" class="tab-btn py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-medium text-slate-300 hover:text-white border-b-2 border-transparent flex items-center gap-1.5 whitespace-nowrap shrink-0">
                     <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> 決算書 (B/S・P/L)
                 </button>
+                <button data-tab="tab-charts" class="tab-btn py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-medium text-slate-300 hover:text-white border-b-2 border-transparent flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                    <i data-lucide="pie-chart" class="w-4 h-4"></i> グラフ・分析
+                </button>
                 <button data-tab="tab-settings" class="tab-btn py-1.5 sm:py-2 px-3 text-xs sm:text-sm font-medium text-slate-300 hover:text-white border-b-2 border-transparent flex items-center gap-1.5 whitespace-nowrap shrink-0">
                     <i data-lucide="settings" class="w-4 h-4"></i> 設定・科目・補助科目
                 </button>
@@ -158,6 +162,7 @@
         <section id="tab-ledger" class="tab-content"><!-- 総勘定元帳HTML --></section>
         <section id="tab-journal" class="tab-content"><!-- 仕訳帳履歴HTML --></section>
         <section id="tab-statements" class="tab-content"><!-- 決算書HTML --></section>
+        <section id="tab-charts" class="tab-content"><!-- グラフ・分析HTML --></section>
         <section id="tab-settings" class="tab-content"><!-- 設定HTML --></section>
     </main>
 

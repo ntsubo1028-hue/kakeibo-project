@@ -50,8 +50,40 @@ export function updateDashboard() {
     state.categories.liabilities.forEach(c => totalLiab += calculateAccountBalance(c.name));
     const liabEl = document.getElementById('summary-total-liabilities');
     if (liabEl) liabEl.textContent = `¥${totalLiab.toLocaleString()}`;
-    
-    // ★ ログイン後やデータ読み込み時に、最新のデータベース（ストア）から科目リストを必ず再構築する
+
+    // --- 【追加】当月収益・当月費用の発生主義集計 ---
+    const now = new Date();
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; // 例: "2026-11"
+
+    const incomeAccNames = (state.categories.income || []).map(c => c.name);
+    const expenseAccNames = (state.categories.expenses || []).map(c => c.name);
+
+    let monthlyIncome = 0;
+    let monthlyExpense = 0;
+
+    (state.transactions || []).forEach(t => {
+        // 当月の取引（YYYY-MMが一致するもの）を対象にする
+        if (t.date && t.date.startsWith(currentYearMonth)) {
+            const amt = Number(t.amount) || 0;
+            
+            // 貸方に収益科目があれば収益発生、借方にあればマイナス（訂正・取消等）
+            if (incomeAccNames.includes(t.credit.acc)) monthlyIncome += amt;
+            if (incomeAccNames.includes(t.debit.acc)) monthlyIncome -= amt;
+
+            // 借方に費用科目があれば費用発生、貸方にあればマイナス（戻入等）
+            if (expenseAccNames.includes(t.debit.acc)) monthlyExpense += amt;
+            if (expenseAccNames.includes(t.credit.acc)) monthlyExpense -= amt;
+        }
+    });
+
+    const incomeEl = document.getElementById('summary-month-income');
+    if (incomeEl) incomeEl.textContent = `¥${monthlyIncome.toLocaleString()}`;
+
+    const expenseEl = document.getElementById('summary-month-expense');
+    if (expenseEl) expenseEl.textContent = `¥${monthlyExpense.toLocaleString()}`;
+    // ----------------------------------------------------
+
+    // 最新のデータベース（ストア）から科目リストを再構築
     updateSimpleOptions();
     updateCompoundOptions();
     renderTemplateSection();

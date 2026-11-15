@@ -5,6 +5,7 @@ import { initLedger, renderLedger, renderLedgerAccountDropdown } from './views/l
 import { initJournal, renderJournalTable } from './views/journal.js';
 import { initStatements, renderFinancialStatements } from './views/statements.js';
 import { initSettings, renderCategoryManagement } from './views/settings.js';
+import { initCharts, renderCharts } from './views/charts.js';
 
 // DOM読み込み完了時の初期化処理
 window.addEventListener('DOMContentLoaded', async () => {
@@ -95,7 +96,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     initJournal();
     initStatements();
     initSettings();
-
+    initCharts();
+    
     // データベース上の存在年度に合わせてセレクトボックスを初期化
     await updateFiscalYearDropdown();
 
@@ -128,6 +130,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         renderFinancialStatements();
         renderCategoryManagement();
         updateUndoRedoButtonStates();
+        renderCharts()
         
         // セレクトボックスの選択肢および状態も同期
         await updateFiscalYearDropdown();
@@ -161,7 +164,7 @@ function setupTabs() {
             if (targetId === 'tab-journal') renderJournalTable();
             if (targetId === 'tab-statements') renderFinancialStatements();
             if (targetId === 'tab-settings') renderCategoryManagement();
-            
+            if (targetId === 'tab-charts') renderCharts();
             if (window.lucide) lucide.createIcons();
         });
     });

@@ -1,0 +1,65 @@
+<div class="space-y-3">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        
+        <!-- 1. 科目別内訳（円グラフ / ドーナツグラフ） -->
+        <div class="kakeibo-card space-y-3">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-2">
+                <h2 class="kakeibo-card-title flex items-center gap-1.5">
+                    <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-600"></i> 科目別内訳分析
+                </h2>
+                <!-- コントロール群：費用/収益切替、月切替/累計 -->
+                <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                    <select id="pie-type-select" class="kakeibo-select bg-slate-50 font-semibold w-auto">
+                        <option value="expense" selected>費用</option>
+                        <option value="income">収益</option>
+                    </select>
+                    <select id="pie-period-select" class="kakeibo-select bg-slate-50 font-semibold w-auto">
+                        <option value="current" selected>当月</option>
+                        <option value="01">1月</option>
+                        <option value="02">2月</option>
+                        <option value="03">3月</option>
+                        <option value="04">4月</option>
+                        <option value="05">5月</option>
+                        <option value="06">6月</option>
+                        <option value="07">7月</option>
+                        <option value="08">8月</option>
+                        <option value="09">9月</option>
+                        <option value="10">10月</option>
+                        <option value="11">11月</option>
+                        <option value="12">12月</option>
+                        <option value="total">年間累計</option>
+                    </select>
+                </div>
+            </div>
+            <div class="relative w-full h-64 sm:h-72 flex items-center justify-center">
+                <canvas id="expense-pie-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- 2. 月別推移（棒グラフ） -->
+        <div class="kakeibo-card space-y-3">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-2">
+                <h2 class="kakeibo-card-title flex items-center gap-1.5">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-600"></i> 月別推移グラフ
+                </h2>
+                <!-- コントロール群：費用/収益切替、科目/補助科目選択 -->
+                <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                    <select id="bar-type-select" class="kakeibo-select bg-slate-50 font-semibold w-auto">
+                        <option value="expense" selected>費用</option>
+                        <option value="income">収益</option>
+                    </select>
+                    <select id="bar-account-select" class="kakeibo-select bg-slate-50 font-semibold w-auto">
+                        <option value="ALL">(全体の合計)</option>
+                    </select>
+                    <select id="bar-sub-select" class="kakeibo-select bg-slate-50 font-semibold w-auto hidden">
+                        <option value="ALL">(すべての補助)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="relative w-full h-64 sm:h-72 flex items-center justify-center">
+                <canvas id="monthly-trend-chart"></canvas>
+            </div>
+        </div>
+
+    </div>
+</div>
