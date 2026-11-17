@@ -7,11 +7,14 @@
                 <h2 class="kakeibo-card-title flex items-center gap-1.5">
                     <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-600"></i> 科目別内訳分析
                 </h2>
-                <!-- コントロール群：費用/収益切替、月切替/累計 -->
+                <!-- コントロール群：種別切替、月切替/累計 -->
                 <div class="flex flex-wrap items-center gap-1.5 text-xs">
                     <select id="pie-type-select" class="kakeibo-select bg-slate-50 font-semibold w-auto">
                         <option value="expense" selected>費用</option>
                         <option value="income">収益</option>
+                        <option value="assets">資産</option>
+                        <option value="liabilities">負債</option>
+                        <option value="netAssets">純資産</option>
                     </select>
                     <select id="pie-period-select" class="kakeibo-select bg-slate-50 font-semibold w-auto">
                         <option value="current" selected>当月</option>
@@ -42,11 +45,14 @@
                 <h2 class="kakeibo-card-title flex items-center gap-1.5">
                     <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-600"></i> 月別推移グラフ
                 </h2>
-                <!-- コントロール群：費用/収益切替、科目/補助科目選択 -->
+                <!-- コントロール群：種別切替、科目/補助科目選択 -->
                 <div class="flex flex-wrap items-center gap-1.5 text-xs">
                     <select id="bar-type-select" class="kakeibo-select bg-slate-50 font-semibold w-auto">
                         <option value="expense" selected>費用</option>
                         <option value="income">収益</option>
+                        <option value="assets">資産</option>
+                        <option value="liabilities">負債</option>
+                        <option value="netAssets">純資産</option>
                     </select>
                     <select id="bar-account-select" class="kakeibo-select bg-slate-50 font-semibold w-auto">
                         <option value="ALL">(全体の合計)</option>

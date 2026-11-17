@@ -51,9 +51,9 @@ export function updateDashboard() {
     const liabEl = document.getElementById('summary-total-liabilities');
     if (liabEl) liabEl.textContent = `¥${totalLiab.toLocaleString()}`;
 
-    // --- 【追加】当月収益・当月費用の発生主義集計 ---
+    // --- 当月収益・当月費用の発生主義集計 ---
     const now = new Date();
-    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; // 例: "2026-11"
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const incomeAccNames = (state.categories.income || []).map(c => c.name);
     const expenseAccNames = (state.categories.expenses || []).map(c => c.name);
@@ -62,15 +62,12 @@ export function updateDashboard() {
     let monthlyExpense = 0;
 
     (state.transactions || []).forEach(t => {
-        // 当月の取引（YYYY-MMが一致するもの）を対象にする
         if (t.date && t.date.startsWith(currentYearMonth)) {
             const amt = Number(t.amount) || 0;
             
-            // 貸方に収益科目があれば収益発生、借方にあればマイナス（訂正・取消等）
             if (incomeAccNames.includes(t.credit.acc)) monthlyIncome += amt;
             if (incomeAccNames.includes(t.debit.acc)) monthlyIncome -= amt;
 
-            // 借方に費用科目があれば費用発生、貸方にあればマイナス（戻入等）
             if (expenseAccNames.includes(t.debit.acc)) monthlyExpense += amt;
             if (expenseAccNames.includes(t.credit.acc)) monthlyExpense -= amt;
         }
@@ -81,9 +78,7 @@ export function updateDashboard() {
 
     const expenseEl = document.getElementById('summary-month-expense');
     if (expenseEl) expenseEl.textContent = `¥${monthlyExpense.toLocaleString()}`;
-    // ----------------------------------------------------
 
-    // 最新のデータベース（ストア）から科目リストを再構築
     updateSimpleOptions();
     updateCompoundOptions();
     renderTemplateSection();
@@ -107,7 +102,6 @@ function toggleInputMode() {
     }
 }
 
-// サブ勘定更新の共通ヘルパー
 function updateSubAccountOptions(accName, subSelectId) {
     const subSelect = document.getElementById(subSelectId);
     if (!subSelect) return;
@@ -119,14 +113,15 @@ function updateSubAccountOptions(accName, subSelectId) {
     }
 }
 
-// データベース（ストア）の最新カテゴリから通常モードの選択肢を動的に生成する
+// 通常モードの選択肢とグループタイトルの動的切り替え
 function updateSimpleOptions() {
     const type = document.getElementById('simple-type')?.value;
     const cat1Select = document.getElementById('simple-cat1');
     const cat2Select = document.getElementById('simple-cat2');
+    const group1Title = document.getElementById('simple-group1-title');
+    const group2Title = document.getElementById('simple-group2-title');
     if (!cat1Select || !cat2Select) return;
     
-    // 現在選択されている値を保持（可能であれば維持するため）
     const currentVal1 = cat1Select.value;
     const currentVal2 = cat2Select.value;
 
@@ -138,15 +133,23 @@ function updateSimpleOptions() {
     const allAssetsAndLiabilities = [...state.categories.assets, ...state.categories.liabilities];
 
     if (type === 'expense') {
+        if (group1Title) group1Title.textContent = '【1. 何に支払ったか (費用)】';
+        if (group2Title) group2Title.textContent = '【2. どこから支払ったか (資産)】';
         list1 = state.categories.expenses;
         list2 = allAssetsAndLiabilities;
     } else if (type === 'income') {
+        if (group1Title) group1Title.textContent = '【1. 何で受け取ったか (資産)】';
+        if (group2Title) group2Title.textContent = '【2. 何の収益か (収益)】';
         list1 = allAssetsAndLiabilities;
         list2 = state.categories.income;
     } else if (type === 'transfer') {
+        if (group1Title) group1Title.textContent = '【1. 出金元口座 (どこから)】';
+        if (group2Title) group2Title.textContent = '【2. 入金先口座 (どこへ)】';
         list1 = allAssetsAndLiabilities;
         list2 = allAssetsAndLiabilities;
     } else if (type === 'credit') {
+        if (group1Title) group1Title.textContent = '【1. 何に支払ったか (費用)】';
+        if (group2Title) group2Title.textContent = '【2. クレジットカード (未払金)】';
         list1 = state.categories.expenses;
         list2 = state.categories.liabilities;
     }
@@ -154,7 +157,6 @@ function updateSimpleOptions() {
     list1.forEach(c => cat1Select.appendChild(new Option(c.name, c.name)));
     list2.forEach(c => cat2Select.appendChild(new Option(c.name, c.name)));
 
-    // 可能なら元の選択状態を復元、なければ先頭
     if (currentVal1) cat1Select.value = currentVal1;
     if (currentVal2) cat2Select.value = currentVal2;
 
@@ -207,9 +209,11 @@ function handleTransactionSubmit(e) {
             debit = { acc: cat1, sub: sub1 };
             credit = { acc: cat2, sub: sub2 };
         } else if (type === 'income') {
-            debit = { acc: cat2, sub: sub2 };
-            credit = { acc: cat1, sub: sub1 };
+            // 収入: 借方(左:資産) / 貸方(右:収益)
+            debit = { acc: cat1, sub: sub1 };
+            credit = { acc: cat2, sub: sub2 };
         } else if (type === 'transfer') {
+            // 口座振替: 借方(右:入金先) / 貸方(左:出金元)
             debit = { acc: cat2, sub: sub2 };
             credit = { acc: cat1, sub: sub1 };
         }
@@ -254,8 +258,8 @@ function handleAddTemplate() {
             debitAcc = cat1; debitSub = sub1;
             creditAcc = cat2; creditSub = sub2;
         } else if (type === 'income') {
-            debitAcc = cat2; debitSub = sub2;
-            creditAcc = cat1; creditSub = sub1;
+            debitAcc = cat1; debitSub = sub1;
+            creditAcc = cat2; creditSub = sub2;
         } else if (type === 'transfer') {
             debitAcc = cat2; debitSub = sub2;
             creditAcc = cat1; creditSub = sub1;
@@ -323,7 +327,6 @@ function renderTemplateSection() {
     if (window.lucide) lucide.createIcons();
 }
 
-// カテゴリタブと操作ボタンの描画
 function renderTemplateCategories(tabsContainer, extraControlsContainer, categories) {
     categories.forEach(cat => {
         const isSelected = (cat === activeTemplateCategory);
@@ -364,7 +367,6 @@ function renderTemplateCategories(tabsContainer, extraControlsContainer, categor
     }
 }
 
-// 仕訳ボタンの描画
 function renderTemplateButtons(buttonsContainer, templates) {
     const currentCatTemplates = templates.filter(t => (t.category || '共通') === activeTemplateCategory);
 
