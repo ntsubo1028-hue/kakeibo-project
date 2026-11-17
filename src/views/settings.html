@@ -22,6 +22,25 @@
         </div>
     </div>
 
+    <!-- ▼▼▼ 【追加】バックアップ・リストア セクション ▼▼▼ -->
+    <div id="backup-restore-section" class="space-y-3 pb-3 border-b text-xs hidden">
+        <h3 class="font-bold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="database" class="w-3.5 h-3.5 text-emerald-600"></i> データ管理 (バックアップ・リストア)
+        </h3>
+        <p class="text-[11px] text-slate-500">
+            現在の年度データ（勘定科目、仕訳、期首残高、前年度実績などすべて）をJSONファイルとしてバックアップ保存したり、バックアップファイルを読み込んで環境を復元・移行できます。
+        </p>
+        <div class="flex flex-wrap gap-2">
+            <button type="button" id="btn-backup-json" class="btn-secondary bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5">
+                <i data-lucide="download" class="w-4 h-4"></i> バックアップ出力 (JSON)
+            </button>
+            <button type="button" id="btn-restore-json" class="btn-secondary bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5">
+                <i data-lucide="upload" class="w-4 h-4"></i> リストア (JSON読込)
+            </button>
+            <input type="file" id="restore-file-input" accept=".json" class="hidden">
+        </div>
+    </div>
+
     <div class="space-y-4 pt-1">
         <h3 class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
             <i data-lucide="layers" class="w-3.5 h-3.5 text-emerald-600"></i> 勘定科目と補助科目の編集・追加

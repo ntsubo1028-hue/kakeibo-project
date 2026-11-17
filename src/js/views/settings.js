@@ -1,9 +1,10 @@
 import { store } from '../store.js';
 import { calculateAccountBalance, calculateSubAccountBalance } from '../accounting.js';
 import { showToast, updateAppHeader } from '../main.js';
+import { loadJSONData } from '../db.js';
 
-// 現在選択中の勘定科目分類（デフォルトは資産 'assets'）
 let activeAccountType = 'assets';
+let cachedIsLoggedIn = false; // ログイン状態の保持用
 
 const ACCOUNT_TYPES = [
     { key: 'assets', label: '資産の部' },
@@ -12,6 +13,19 @@ const ACCOUNT_TYPES = [
     { key: 'income', label: '収益の部 (P/L)' },
     { key: 'expenses', label: '費用の部 (P/L)' }
 ];
+
+// 外部からログイン状態に応じて表示/非表示を切り替える関数
+export function setBackupRestoreVisibility(isVisible) {
+    cachedIsLoggedIn = isVisible;
+    const section = document.getElementById('backup-restore-section');
+    if (section) {
+        if (isVisible) {
+            section.classList.remove('hidden');
+        } else {
+            section.classList.add('hidden');
+        }
+    }
+}
 
 export async function initSettings() {
     await renderSettingsHtml();
@@ -29,6 +43,9 @@ async function renderSettingsHtml() {
         console.error(e);
     }
 
+    // 再描画時にもキャッシュされたログイン状態を適用
+    setBackupRestoreVisibility(cachedIsLoggedIn);
+
     const state = store.getState();
     const nameEl = document.getElementById('setting-household-name');
     const yearEl = document.getElementById('setting-fiscal-year');
@@ -37,6 +54,12 @@ async function renderSettingsHtml() {
 
     document.getElementById('btn-save-basic')?.addEventListener('click', saveBasicSettings);
     document.getElementById('btn-execute-rollover')?.addEventListener('click', executeRollover);
+
+    document.getElementById('btn-backup-json')?.addEventListener('click', handleBackupJson);
+    document.getElementById('btn-restore-json')?.addEventListener('click', () => {
+        document.getElementById('restore-file-input')?.click();
+    });
+    document.getElementById('restore-file-input')?.addEventListener('change', handleRestoreJsonFile);
 
     renderCategoryManagement();
 }
@@ -48,6 +71,49 @@ function saveBasicSettings() {
     store.setState(state);
     updateAppHeader();
     showToast('基本情報を保存しました。');
+}
+
+// --- バックアップ出力処理 ---
+function handleBackupJson() {
+    const state = store.getState();
+    const jsonStr = JSON.stringify(state, null, 2);
+    const fileName = `kakeibo_backup_${state.fiscalYear}.json`;
+    
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('バックアップファイルを出力しました。');
+}
+
+// --- リストア（読込）処理 ---
+function handleRestoreJsonFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!confirm('現在のデータ（勘定科目や仕訳など）が選択したバックアップファイルの内容で上書きされます。\n本当にリストアを実行しますか？')) {
+        e.target.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        try {
+            const jsonStr = ev.target.result;
+            // db.js の堅牢なパーサー・マイグレーション機能付き関数を利用
+            loadJSONData(jsonStr, file.name);
+            // 設定画面の基本情報入力欄も最新の状態に再描画
+            renderSettingsHtml();
+        } catch (err) {
+            console.error(err);
+            alert('バックアップファイルの読み込みに失敗しました。');
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
 }
 
 function executeRollover() {
@@ -112,7 +178,6 @@ export function renderCategoryManagement() {
     const header = document.createElement('div');
     header.className = "flex items-center justify-between border-b border-slate-200 pb-2.5 gap-2";
 
-    // 左側：分類切替用コンボボックス（セレクトボックス）
     const selectWrapper = document.createElement('div');
     selectWrapper.className = "flex items-center gap-2";
     
@@ -139,7 +204,6 @@ export function renderCategoryManagement() {
     selectWrapper.appendChild(selectLabel);
     selectWrapper.appendChild(select);
 
-    // 右側：＋科目追加ボタン
     const addAccBtn = document.createElement('button');
     addAccBtn.type = 'button';
     addAccBtn.className = "h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-2xs transition inline-flex items-center gap-1 shrink-0";
@@ -163,9 +227,8 @@ export function renderCategoryManagement() {
 
         const row = document.createElement('div');
         row.className = "bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs space-y-2 transition-all hover:border-slate-300";
-        row.draggable = true; // HTML5 ドラッグ対応
+        row.draggable = true;
 
-        // ドラッグイベント処理
         row.ondragstart = (e) => {
             e.dataTransfer.setData('text/plain', cIdx);
             row.classList.add('opacity-50', 'bg-slate-50');
@@ -185,13 +248,11 @@ export function renderCategoryManagement() {
         const canUp = cIdx > 0;
         const canDown = cIdx < categories.length - 1;
 
-        // 科目行のメイン部分
         const topRow = document.createElement('div');
         topRow.className = "flex items-center justify-between gap-2";
 
         topRow.innerHTML = `
             <div class="flex items-center gap-2">
-                <!-- ドラッグハンドル ＋ 上下ボタン -->
                 <div class="flex items-center gap-1 text-slate-400">
                     <span class="cursor-grab active:cursor-grabbing hover:text-slate-600 p-0.5" title="ドラッグして並び替え">
                         <i data-lucide="grip-vertical" class="w-4 h-4"></i>
@@ -214,7 +275,6 @@ export function renderCategoryManagement() {
         `;
         row.appendChild(topRow);
 
-        // 補助科目エリア
         const subSection = document.createElement('div');
         subSection.className = "pl-8 pt-2 border-t border-slate-100 space-y-1.5";
         
@@ -255,7 +315,6 @@ export function renderCategoryManagement() {
 
 // --- グローバル関数登録 ---
 
-// ドラッグ＆ドロップによる位置の直接並び替え
 window.kakeiboReorderAccount = function(type, srcIdx, destIdx) {
     const state = store.getState();
     const categories = state.categories[type];
@@ -267,7 +326,6 @@ window.kakeiboReorderAccount = function(type, srcIdx, destIdx) {
     showToast('科目の表示順を変更しました。');
 };
 
-// ボタン操作による科目の並び替え
 window.kakeiboMoveAccount = function(type, cIdx, direction) {
     const state = store.getState();
     const categories = state.categories[type];
@@ -283,7 +341,6 @@ window.kakeiboMoveAccount = function(type, cIdx, direction) {
     showToast('科目の並び順を更新しました。');
 };
 
-// 補助科目の並び替え
 window.kakeiboMoveSub = function(type, cIdx, sIdx, direction) {
     const state = store.getState();
     const subAccounts = state.categories[type][cIdx].sub;
