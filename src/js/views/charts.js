@@ -3,6 +3,77 @@ import { store } from '../store.js';
 let expensePieChartInstance = null;
 let monthlyTrendChartInstance = null;
 
+// 棒グラフの各棒の上に実績値（金額）を描画するプラグイン
+const barValueLabelsPlugin = {
+    id: 'barValueLabels',
+    afterDatasetsDraw(chart) {
+        const { ctx, data } = chart;
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data) return;
+
+        ctx.save();
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#334155';
+
+        meta.data.forEach((barElement, index) => {
+            const rawVal = Number(data.datasets[0]?.data?.[index]);
+            if (Number.isNaN(rawVal)) return;
+
+            const labelText = `¥${rawVal.toLocaleString()}`;
+            const x = barElement.x;
+            const y = rawVal < 0 ? barElement.y + 12 : barElement.y - 3;
+
+            ctx.textBaseline = rawVal < 0 ? 'top' : 'bottom';
+            ctx.fillText(labelText, x, y);
+        });
+
+        ctx.restore();
+    }
+};
+
+// 円グラフ（ドーナツ）の各セグメント上に金額を描画するプラグイン
+const pieValueLabelsPlugin = {
+    id: 'pieValueLabels',
+    afterDatasetsDraw(chart) {
+        const { ctx, data } = chart;
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data) return;
+
+        const labels = data.labels || [];
+        if (labels.length === 1 && labels[0] === 'データなし') return;
+
+        ctx.save();
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(15, 23, 42, 0.55)';
+        ctx.shadowBlur = 3;
+
+        meta.data.forEach((arcElement, index) => {
+            const rawVal = Number(data.datasets[0]?.data?.[index]);
+            if (!rawVal) return;
+
+            // セグメントの角度と半径から中心座標を算出
+            const angle = (arcElement.startAngle + arcElement.endAngle) / 2;
+            const arcAngle = arcElement.endAngle - arcElement.startAngle;
+            const radius = (arcElement.innerRadius + arcElement.outerRadius) / 2;
+
+            // 狭すぎる扇形では文字が重なりやすいためスキップ
+            const arcLength = arcAngle * radius;
+            const labelText = `¥${rawVal.toLocaleString()}`;
+            if (arcLength < 28) return;
+
+            const x = arcElement.x + Math.cos(angle) * radius;
+            const y = arcElement.y + Math.sin(angle) * radius;
+            ctx.fillText(labelText, x, y);
+        });
+
+        ctx.restore();
+    }
+};
+
 export async function initCharts() {
     const container = document.getElementById('tab-charts');
     if (!container) return;
@@ -93,7 +164,6 @@ function updateBarSubDropdown() {
 
     if (accName === 'ALL') {
         subSelect.classList.add('hidden');
-
         return;
     }
 
@@ -108,7 +178,7 @@ function updateBarSubDropdown() {
     }
 }
 
-// 修正：subNameが指定されていない（すべての補助）場合はサブ科目の期首残高も合算する
+// subNameが指定されていない（すべての補助）場合はサブ科目の期首残高も合算する
 function calculateBalanceAtDate(accName, subName, targetDateStr, state) {
     const type = getAccountType(accName, state);
     let balance = 0;
@@ -276,14 +346,14 @@ export function renderCharts() {
 
     const allMonths = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
     
-    // 修正：未来月（当月以降の月）は表示対象から除外する
+    // 未来月（当月以降の月）は表示対象から除外する
     const currentY = now.getFullYear();
     const currentM = now.getMonth() + 1;
     let maxMonthIdx = 11;
     if (fiscalYear > currentY) {
-        maxMonthIdx = -1; // 未来年度は表示しない
+        maxMonthIdx = -1;
     } else if (fiscalYear === currentY) {
-        maxMonthIdx = currentM - 1; // 当月まで
+        maxMonthIdx = currentM - 1;
     }
 
     const activeMonths = allMonths.slice(0, maxMonthIdx + 1);
@@ -311,7 +381,6 @@ export function renderCharts() {
             const [y, m] = t.date.split('-');
             if (Number(y) === fiscalYear) {
                 const monthIdx = allMonths.indexOf(m);
-                // activeMonths に含まれる月（当月まで）のみ集計
                 if (monthIdx !== -1 && monthIdx <= maxMonthIdx) {
                     const amt = Number(t.amount) || 0;
 
@@ -364,6 +433,9 @@ function renderPieChart(labels, data) {
         expensePieChartInstance.destroy();
     }
 
+    const hasData = labels.length > 0 && data.length > 0;
+    const totalSum = hasData ? data.reduce((sum, v) => sum + Number(v || 0), 0) : 0;
+
     const backgroundColors = [
         '#10b981', '#6366f1', '#f59e0b', '#ef4444', '#3b82f6', 
         '#ec4899', '#8b5cf6', '#14b8a6', '#f97316', '#64748b'
@@ -372,19 +444,30 @@ function renderPieChart(labels, data) {
     expensePieChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: labels.length > 0 ? labels : ['データなし'],
+            labels: hasData ? labels : ['データなし'],
             datasets: [{
-                data: data.length > 0 ? data : [1],
-                backgroundColor: labels.length > 0 ? backgroundColors.slice(0, labels.length) : ['#e2e8f0']
+                data: hasData ? data : [1],
+                backgroundColor: hasData ? backgroundColors.slice(0, labels.length) : ['#e2e8f0']
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            if (!hasData) return 'データなし';
+                            const val = Number(context.raw) || 0;
+                            const pct = totalSum > 0 ? ((val / totalSum) * 100).toFixed(1) : '0.0';
+                            return `${context.label}: ¥${val.toLocaleString()} (${pct}%)`;
+                        }
+                    }
+                }
             }
-        }
+        },
+        plugins: [pieValueLabelsPlugin]
     });
 }
 
@@ -395,6 +478,10 @@ function renderTrendChart(labels, datasetData, labelName, color) {
     if (monthlyTrendChartInstance) {
         monthlyTrendChartInstance.destroy();
     }
+
+    const maxVal = datasetData.length > 0 ? Math.max(...datasetData.map(v => Number(v) || 0), 0) : 0;
+    const minVal = datasetData.length > 0 ? Math.min(...datasetData.map(v => Number(v) || 0), 0) : 0;
+    const yPadding = Math.max(Math.abs(maxVal), Math.abs(minVal)) * 0.15;
 
     monthlyTrendChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -412,13 +499,35 @@ function renderTrendChart(labels, datasetData, labelName, color) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 14
+                }
+            },
             scales: {
-                y: { ticks: { font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+                y: {
+                    suggestedMax: maxVal > 0 ? maxVal + yPadding : undefined,
+                    suggestedMin: minVal < 0 ? minVal - yPadding : undefined,
+                    ticks: {
+                        font: { size: 10 },
+                        callback: (value) => `¥${Number(value).toLocaleString()}`
+                    },
+                    grid: { color: '#f1f5f9' }
+                },
                 x: { ticks: { font: { size: 10 } }, grid: { display: false } }
             },
             plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const val = Number(context.raw) || 0;
+                            return `${context.dataset.label}: ¥${val.toLocaleString()}`;
+                        }
+                    }
+                }
             }
-        }
+        },
+        plugins: [barValueLabelsPlugin]
     });
 }

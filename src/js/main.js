@@ -19,7 +19,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         const emailDisplay = document.getElementById('user-email-display');
         const localFileOnlyControls = document.getElementById('local-file-only-controls');
         const unsavedAlert = document.getElementById('unsaved-alert');
-        const syncStatusText = document.getElementById('sync-status-text'); // ステータス表示要素
+        const syncStatusText = document.getElementById('sync-status-text');
 
         if (user) {
             // ① Googleログイン中の場合
@@ -33,10 +33,9 @@ window.addEventListener('DOMContentLoaded', async () => {
             // クラウド同期中は手動のファイル操作エリアおよび未保存アラートを非表示にする
             if (localFileOnlyControls) localFileOnlyControls.classList.add('hidden');
             if (unsavedAlert) unsavedAlert.classList.add('hidden');
-            // ステータス表示をクラウド同期中に変更
             if (syncStatusText) {
                 syncStatusText.textContent = "クラウド同期中";
-                syncStatusText.className = "text-[10px] text-emerald-400 font-medium"; // 色を少し目立たせても綺麗です
+                syncStatusText.className = "text-[10px] text-emerald-400 font-medium";
             }
             showToast('クラウドデータベースと接続しました（自動保存中）。');
         } else {
@@ -48,17 +47,14 @@ window.addEventListener('DOMContentLoaded', async () => {
             // ローカル運用のときだけ手動のファイル操作エリアを表示する
             if (localFileOnlyControls) localFileOnlyControls.classList.remove('hidden');
             
-            // ▼▼▼【ここに追加】ローカルファイルモード時も起動時は警告を隠す ▼▼▼
             if (unsavedAlert) unsavedAlert.classList.add('hidden');
             
-            // ステータス表示をローカルファイルモードに変更
             if (syncStatusText) {
                 syncStatusText.textContent = "ローカルファイルモード";
                 syncStatusText.className = "text-[10px] text-slate-400";
             }
             showToast('ローカルファイルモードで動作しています。');
         }
-        // 認証状態の変化やデータロードに合わせて年度プルダウンを更新
         await updateFiscalYearDropdown();
     });
 
@@ -84,13 +80,12 @@ window.addEventListener('DOMContentLoaded', async () => {
                 await store.changeFiscalYear(newYear);
                 showToast(`${newYear}年度のデータを読み込みました。`);
             } else {
-                // キャンセルされた場合はセレクトボックスの表示を元に戻す
                 fiscalYearSelect.value = store.getState().fiscalYear;
             }
         });
     }
 
-    // 1. 各ビュー（ダッシュボード、元帳、仕訳帳、決算書、設定）の初期化
+    // 1. 各ビューの初期化
     initDashboard();
     initLedger();
     initJournal();
@@ -98,7 +93,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     initSettings();
     initCharts();
     
-    // データベース上の存在年度に合わせてセレクトボックスを初期化
     await updateFiscalYearDropdown();
 
     // 2. 取引編集モーダルのイベント配線
@@ -120,6 +114,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('file-input')?.addEventListener('change', handleFileSelect);
     document.getElementById('csv-file-input')?.addEventListener('change', handleCsvImport);
 
+    // 6. スマホ向けソフトキーボードの自動解除
+    setupMobileKeyboardDismiss();
+
     // データロード / 状態変更時の一括再描画イベントリスナー
     window.addEventListener('kakeibo-data-loaded', async () => {
         updateAppHeader();
@@ -130,9 +127,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         renderFinancialStatements();
         renderCategoryManagement();
         updateUndoRedoButtonStates();
-        renderCharts()
+        renderCharts();
         
-        // セレクトボックスの選択肢および状態も同期
         await updateFiscalYearDropdown();
     });
 
@@ -140,26 +136,56 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateUndoRedoButtonStates();
 });
 
+// --- スマホ向けソフトキーボードのフォーカス解除処理 ---
+function dismissSoftKeyboard(target = null) {
+    const active = document.activeElement;
+    if (!active || typeof active.blur !== 'function') return;
+    if (!active.matches('input, textarea')) return;
+
+    // 移動先が別の入力欄・テキストエリアの場合は自然なフォーカス移動に任せる
+    if (target && target.closest && target.closest('input, textarea')) return;
+
+    active.blur();
+}
+
+function setupMobileKeyboardDismiss() {
+    document.addEventListener('pointerdown', (e) => {
+        // 入力欄・テキストエリア・セレクトボックスを操作するときは邪魔しない
+        if (e.target.closest && e.target.closest('input, textarea, select')) return;
+        dismissSoftKeyboard(e.target);
+    }, { passive: true });
+
+    // フォーム送信時にも確実にフォーカスを外す
+    document.addEventListener('submit', () => {
+        dismissSoftKeyboard();
+    }, true);
+
+    // テキスト・数値入力で Enter 押下時（IME変換中でない場合）にフォーカスを外す
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.isComposing && e.target.matches && e.target.matches('input[type="text"], input[type="number"]')) {
+            e.target.blur();
+        }
+    });
+}
+
 // タブ切り替え制御
 function setupTabs() {
     const tabButtons = document.querySelectorAll('.tab-btn');
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => {
+            dismissSoftKeyboard();
             const targetId = btn.getAttribute('data-tab');
 
-            // 全てのタブコンテンツを非表示にし、ボタンのアクティブスタイルを解除
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => {
                 el.classList.remove('text-emerald-400', 'border-emerald-400');
                 el.classList.add('text-slate-300', 'border-transparent');
             });
 
-            // 選択されたタブを表示し、アクティブスタイルを適用
             document.getElementById(targetId)?.classList.add('active');
             btn.classList.remove('text-slate-300', 'border-transparent');
             btn.classList.add('text-emerald-400', 'border-emerald-400');
 
-            // タブごとの遅延レンダリング
             if (targetId === 'tab-ledger') renderLedger();
             if (targetId === 'tab-journal') renderJournalTable();
             if (targetId === 'tab-statements') renderFinancialStatements();
@@ -247,6 +273,7 @@ export function showToast(msg) {
 // --- 取引の編集・コピー・削除・モーダル制御 ---
 
 export function closeTxEditModal() {
+    dismissSoftKeyboard();
     const modal = document.getElementById('tx-edit-modal');
     if (modal) modal.classList.add('hidden');
 }
@@ -313,6 +340,7 @@ export function setupEditModalEvents() {
     if (editForm) {
         editForm.onsubmit = (e) => {
             e.preventDefault();
+            dismissSoftKeyboard();
             const id = document.getElementById('edit-tx-id').value;
             const state = store.getState();
             const idx = state.transactions.findIndex(item => item.id === id);
@@ -384,7 +412,6 @@ async function updateFiscalYearDropdown() {
     const select = document.getElementById('fiscal-year-select');
     if (!select) return;
 
-    // ストアから実際にデータが存在する年度リストを取得
     const availableYears = await store.getAvailableYears();
 
     select.innerHTML = '';
@@ -395,6 +422,5 @@ async function updateFiscalYearDropdown() {
         select.appendChild(option);
     });
 
-    // 現在選択中の年度を反映
     select.value = store.getState().fiscalYear;
 }
